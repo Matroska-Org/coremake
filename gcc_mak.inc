@@ -725,7 +725,7 @@ IF "%(UI_FORM_QT4)"!=""
     PRINTNL $(BUILD)GeneratedFiles/ui_%(~<!NAME).h: %(!NAME)
 //    PRINTNL $(BUILD)GeneratedFiles/ui_%.h: %.ui
     PRINTNL 	$(hide)echo UICing $<
-    PRINTNL 	$(hide)mkdir -p %(!BUILDPATH)%(PATH)GeneratedFiles/$(*D)
+    PRINTNL 	$(hide)mkdir -p $(BUILD)GeneratedFiles/$(*D)
     PRINTNL 	$(hide)"$(QTDIR)/bin/uic" -o $@ $<
     PRINTNL 
   ENDFOR
@@ -735,7 +735,7 @@ IF "%(RESOURCE_QT4)"!=""
     PRINTNL $(BUILD)GeneratedFiles/qrc_%(~<!NAME).cpp: %(!NAME)
 //    PRINTNL $(BUILD)GeneratedFiles/qrc_%.cpp: %.qrc
     PRINTNL 	$(hide)echo RCCing $<
-    PRINTNL 	$(hide)mkdir -p %(!BUILDPATH)%(PATH)GeneratedFiles/$(*D)
+    PRINTNL 	$(hide)mkdir -p $(BUILD)GeneratedFiles/$(*D)
     PRINTNL 	$(hide)"$(QTDIR)/bin/rcc" -name $< -o $@ $<
     PRINTNL 
   ENDFOR
@@ -745,7 +745,7 @@ IF "%(HEADER_QT4)"!=""
     PRINTNL $(BUILD)GeneratedFiles/moc_%(~<!NAME).cpp: %(!NAME)
 //    PRINTNL $(BUILD)GeneratedFiles/moc_%.cpp: %.h
     PRINTNL 	$(hide)echo MOCing $<
-    PRINTNL 	$(hide)mkdir -p %(!BUILDPATH)%(PATH)GeneratedFiles/$(*D)
+    PRINTNL 	$(hide)mkdir -p $(BUILD)GeneratedFiles/$(*D)
     PRINTNL 	$(hide)"$(QTDIR)/bin/moc" %(@INCLUDE:%=-I '%') %(@SYSINCLUDE:%=-I '%')  %(@CONFIG_INCLUDE:%=-I '%') $< -o $@
     PRINTNL 
   ENDFOR
