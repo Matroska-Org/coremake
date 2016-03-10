@@ -260,6 +260,7 @@ PRINTNL
 
 PRINTNL ifeq ($(DEBUG),1)
 // TODO: should alter the temporary files and destination file paths since it's not the same build
+PRINTNL  CCFLAGS += -g -O0
 PRINTNL else
 PRINTNL  CCFLAGS += -DNDEBUG
 PRINTNL  SFLAGS += -DNDEBUG
@@ -471,7 +472,11 @@ ELSE
       //-Wl,-Map=%(¯!OUTPUTPATH)%(+OUTPUT_DIR)%(NAME).map
     ENDIF
     IF "%(STRIP)"
+      PRINTNL ifeq ($(DEBUG),1)
+      PRINTNL # no stripping
+      PRINTNL else
       PRINTNL 	$(hide)$(STRIP) %(STRIPFLAGS) $@
+      PRINTNL endif
     ENDIF
     IF %(TYPE)==dll && defined(TARGET_ANDROID)
       PRINTNL 	$(hide)mkdir -p %(!BUILDDIR)libs/%(ANDROID_ABI)
