@@ -116,19 +116,6 @@ install: coremake corerc
 	install -c -m 644 -D vs_wm6p_armv4i.build /usr/local/share/coremake/vs_wm6p_armv4i.build
 	install -c -m 644 -D vs_wm6s_armv4i.build /usr/local/share/coremake/vs_wm6s_armv4i.build
 	install -c -m 644 -D vs_x64.build /usr/local/share/coremake/vs_x64.build
-	install -c -m 644 -D xcode24_universal.build /usr/local/share/coremake/xcode24_universal.build
-	install -c -m 644 -D xcode.build /usr/local/share/coremake/xcode.build
-	install -c -m 644 -D xcode_ios4.build /usr/local/share/coremake/xcode_ios4.build
-	install -c -m 644 -D xcode_ios4_simu.build /usr/local/share/coremake/xcode_ios4_simu.build
-	install -c -m 644 -D xcode_iphone.build /usr/local/share/coremake/xcode_iphone.build
-	install -c -m 644 -D xcode_iphone_dev.build /usr/local/share/coremake/xcode_iphone_dev.build
-	install -c -m 644 -D xcode_iphone_ipad.build /usr/local/share/coremake/xcode_iphone_ipad.build
-	install -c -m 644 -D xcode_iphone_ipad_simu.build /usr/local/share/coremake/xcode_iphone_ipad_simu.build
-	install -c -m 644 -D xcode_iphone_simulator.build /usr/local/share/coremake/xcode_iphone_simulator.build
-	install -c -m 644 -D xcode_iphone_uni.build /usr/local/share/coremake/xcode_iphone_uni.build
-	install -c -m 644 -D xcode_uni64.build /usr/local/share/coremake/xcode_uni64.build
-	install -c -m 644 -D xcode_uni.build /usr/local/share/coremake/xcode_uni.build
-	install -c -m 644 -D xcode_x86.build /usr/local/share/coremake/xcode_x86.build
 	install -c -m 644 -D android_arm.inc /usr/local/share/coremake/android_arm.inc
 	install -c -m 644 -D android.inc /usr/local/share/coremake/android.inc
 	install -c -m 644 -D android_mk.inc /usr/local/share/coremake/android_mk.inc
