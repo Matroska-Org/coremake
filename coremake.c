@@ -5553,7 +5553,7 @@ int main(int argc, char** argv)
 	}
 	else
     {
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__CYGWIN__)
         HMODULE this1 = GetModuleHandleA("coremake.exe");
         if (this1)
         {
