@@ -1072,6 +1072,19 @@ void trunchex(char* s)
 		strdel(s,s+2);
 }
 
+void unstring(char *s)
+{
+    size_t len;
+    if (s[0] != '"')
+        return;
+    len = strlen(s);
+    if (len > 1 && s[len - 1] == '"')
+    {
+        memmove(s, s + 1, len - 2);
+        s[len - 2] = '\0';
+    }
+}
+
 char* nextlevel(const char* path)
 {
 	char* i = strchr(path,'/');
@@ -4361,6 +4374,7 @@ int tokeneval(char* s,int skip,build_pos* pos,reader* error, int extra_cmd)
 
             if (j)
                 strcpy(name, (*j->child)->value);
+            unstring(name);
 
             if (*s != '@')
                 syntax(error);
