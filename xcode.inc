@@ -291,7 +291,7 @@ FOR EACH WORKSPACE
     IF %(SOURCE)
       PRINTNL 				%(_XCODEGRPUID) /* Sources */,
     ENDIF
-    IF %(HEADER)
+    IF %(HEADER) || %(HEADER_FORCE)
       PRINTNL 				%(XCODEGRPUID2) /* Headers */,
     ENDIF
     IF %(HAS_REZ) || %(HAS_RESOURCE) || %(OSX_STRINGS) || (%(TYPE)==EXE) || (%(TYPE)==DLL)
@@ -304,11 +304,11 @@ FOR EACH WORKSPACE
     PRINTNL 			name = %(NAME);
     PRINTNL 			sourceTree = "<group>";
     PRINTNL 		};
-    IF %(HEADER)
+    IF %(HEADER) || %(HEADER_FORCE)
       PRINTNL 		%(XCODEGRPUID2) /* Headers */ = {
       PRINTNL 			isa = PBXGroup;
       PRINTNL 			children = (
-      FOR EACH HEADER
+      FOR EACH HEADER,HEADER_FORCE
         PRINTNL 				%(XCODEUID) /* %(!;NAME) */,
       ENDFOR
       PRINTNL 			);
