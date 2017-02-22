@@ -87,7 +87,7 @@ ENDIF
 IF %(OS_INCLUDE)!=""
   PRINTNL CCFLAGS += %(|OS_INCLUDE:%=-isystem '%')
 ENDIF
-PRINTNL CCFLAGS += %(DEFINE:%=-D%) -I . %(@INCLUDE:%=-I '%') %(@SYSINCLUDE:%=-I '%') %(@CONFIG_INCLUDE:%=-I '%')
+PRINTNL CCFLAGS += %(DEFINE:%=-D%) %(@CONFIG_INCLUDE:%=-I '%') -I . %(@INCLUDE:%=-I '%') %(@SYSINCLUDE:%=-I '%')
 IF %(CCFLAGS)!=""
   PRINTNL CCFLAGS += %(CCFLAGS)
 ENDIF
@@ -101,14 +101,14 @@ PRINTNL CXXFLAGS += %(CXXFLAGS) -fno-for-scope
 IF %(ASMFLAGS)!="" || %(DEFINE)!=""
   PRINTNL ASMFLAGS += %(ASMFLAGS) %(DEFINE:%=-D%) %(@INCLUDE:%=-I%)
 ENDIF
-PRINTNL NASMFLAGS += %(NASMFLAGS) %(DEFINE:%=-D%) %(@INCLUDE:%=-I%) %(@CONFIG_INCLUDE:%=-I '%')
-PRINTNL SFLAGS += %(SFLAGS) %(DEFINE:%=-D%) %(@INCLUDE:%=-I%) %(@CONFIG_INCLUDE:%=-I '%')
+PRINTNL NASMFLAGS += %(NASMFLAGS) %(DEFINE:%=-D%) %(@CONFIG_INCLUDE:%=-I '%') %(@INCLUDE:%=-I%)
+PRINTNL SFLAGS += %(SFLAGS) %(DEFINE:%=-D%) %(@CONFIG_INCLUDE:%=-I '%') %(@INCLUDE:%=-I%)
 IFDEF RESOURCE_COREC 
   PRINTNL CORERCFLAGS += %(CORERCFLAGS)
 ENDIF
 
 IFDEF TARGET_PALMOS
-  PRINTNL CFLAGS_M68K = %(CFLAGS_M68K) %(DEFINE:%=-D '%') %(@INCLUDE:%=-I '%') %(@SYSINCLUDE:%=-I '%')  %(@CONFIG_INCLUDE:%=-I '%') -D "PROJECT_OUTPUT=%(<OUTPUT)" -D "PROJECT_FOURCC=%(PROJECT_FOURCC)"
+  PRINTNL CFLAGS_M68K = %(CFLAGS_M68K) %(DEFINE:%=-D '%') %(@CONFIG_INCLUDE:%=-I '%') %(@INCLUDE:%=-I '%') %(@SYSINCLUDE:%=-I '%') -D "PROJECT_OUTPUT=%(<OUTPUT)" -D "PROJECT_FOURCC=%(PROJECT_FOURCC)"
   PRINTNL LFLAGS_M68K = %(LFLAGS_M68K)
   PRINTNL 
   PRINTNL PEAL = %(!BUILDPATH)peal-postlink
@@ -596,12 +596,12 @@ IF ("%(WINDRES)"!="")
   PRINTNL $(BUILD)%_res.%(NAME).o: %(!ROOTPATH)%.rc
   PRINTNL 	$(hide)echo compiling $<
   PRINTNL 	$(hide)mkdir -p $(BUILD)$(*D)  
-  PRINTNL 	$(hide)$(WINDRES) -I$(*D) %(@INCLUDE:%=-I'%') %(@SYSINCLUDE:%=-I'%') %(@CONFIG_INCLUDE:%=-I'%') $< $@
+  PRINTNL 	$(hide)$(WINDRES) -I$(*D) %(@CONFIG_INCLUDE:%=-I'%') %(@INCLUDE:%=-I'%') %(@SYSINCLUDE:%=-I'%') $< $@
   PRINTNL 
   PRINTNL $(BUILD)%_res.%(NAME).o: %.rc
   PRINTNL 	$(hide)echo compiling $<
   PRINTNL 	$(hide)mkdir -p $(BUILD)$(*D)  
-  PRINTNL 	$(hide)$(WINDRES) -I$(*D) %(@INCLUDE:%=-I'%') %(@SYSINCLUDE:%=-I'%') %(@CONFIG_INCLUDE:%=-I'%') $< $@
+  PRINTNL 	$(hide)$(WINDRES) -I$(*D) %(@CONFIG_INCLUDE:%=-I'%') %(@INCLUDE:%=-I'%') %(@SYSINCLUDE:%=-I'%') $< $@
   PRINTNL 
 ENDIF
 PRINTNL $(BUILD)%.%(NAME).o: %(!ROOTPATH)%.c
