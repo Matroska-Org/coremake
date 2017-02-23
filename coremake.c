@@ -215,7 +215,7 @@ void item_remove(item* i)
 	i->parent = NULL;
 }
 
-void item_add(item* p,item* child)
+static void item_add(item* p,item* child)
 {
 	if (!child)
 		return;
@@ -661,7 +661,7 @@ void item_merge2(item* p,item* group,itemcond* cond0,int removed,int exists)
 	}
 }
 
-void item_merge(item* p,item* group,item* plus)
+static void item_merge(item* p,item* group,item* plus)
 {
 	if (group)
 	{
@@ -2973,7 +2973,7 @@ void preprocess_workspace(item* p)
 	}
 }
 
-void merge_project(item* target,item* source,item* filter)
+static void merge_project(item* target,item* source,item* filter)
 {
 	size_t j;
 
@@ -3123,7 +3123,7 @@ void preprocess_project(item* p)
 }
 
 // replace the "use" of a "group" by the content of the "group"
-void preprocess_group(item* p)
+static void preprocess_group(item* p)
 {
 	item** child;
 	if (!p) return;
