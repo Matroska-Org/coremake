@@ -87,6 +87,8 @@ typedef struct reader
 	char *token;
 	char *filename;
 	char *project_root;
+	char *src_root;
+	char *coremake_root;
 
 } reader;
 
@@ -117,11 +119,6 @@ struct build_pos
 
 #define CMD_COREMAKE                1
 #define CMD_AUTOMAKE                2
-
-char src_root[MAX_PATH] = "";
-char coremake_root[MAX_PATH] = "";
-size_t src_root_len = 0;
-size_t coremake_root_len = 0;
 
 enum
 {
@@ -712,6 +709,8 @@ void reader_init(reader *p)
 	memset(p,0,sizeof(reader));
     p->filename = (char*)malloc(MAX_PATH);
 	p->project_root = (char*)malloc(MAX_PATH);
+	p->src_root = (char*)malloc(MAX_PATH);
+	p->coremake_root = (char*)malloc(MAX_PATH);
 	p->line = (char*)malloc(MAX_LINE);
     p->token = (char*)malloc(MAX_LINE);
     memset(p->filename,0,MAX_PATH);
@@ -722,6 +721,8 @@ void reader_init(reader *p)
 void reader_free(reader *p)
 {
 	free(p->project_root);
+	free(p->src_root);
+	free(p->coremake_root);
 	free(p->filename);
     free(p->line);
     free(p->token);
@@ -733,6 +734,8 @@ void reader_save(reader *p,reader* save)
 	memcpy(save,p,sizeof(reader_static));
     save->filename = strdup(p->filename);
 	save->project_root = strdup(p->project_root);
+	save->src_root = strdup(p->src_root);
+	save->coremake_root = strdup(p->coremake_root);
 	save->line = strdup(p->line);
     save->token = strdup(p->token);
     save->pos = save->line + (p->pos - p->line);
@@ -743,6 +746,8 @@ void reader_restore(reader *p,reader* save)
 	memcpy(p,save,sizeof(reader_static));
     strcpy(p->filename,save->filename);
 	strcpy(p->project_root, save->project_root);
+	strcpy(p->src_root, save->src_root);
+	strcpy(p->coremake_root, save->coremake_root);
 	strcpy(p->line,save->line);
     strcpy(p->token,save->token);
     p->pos = p->line + (save->pos - save->line);
@@ -1202,7 +1207,8 @@ int ispathabs(const char *path)
 }
 
 void simplifypath(char* path, int head);
-void getrelpath(char* path, int path_flags, const char* __curr, int curr_flags, int delend, int levelup, const char *project_root)
+void getrelpath(char* path, int path_flags, const char* __curr, int curr_flags, int delend, int levelup,
+	            const char *project_root, const char *src_root, const char *coremake_root)
 {
     char *__path,_path[MAX_PATH];
     char *curr,_curr[MAX_PATH];
@@ -1220,27 +1226,28 @@ void getrelpath(char* path, int path_flags, const char* __curr, int curr_flags, 
 
     if (!(path_flags & FLAG_PATH_SET_ABSOLUTE))
     {
+		const char *abspath = NULL;
         // ensure that we deal with absolute pathes to compare
         assert(ispathabs(curr));
 
         switch (path_flags & FLAG_PATH_MASK)
         {
         case FLAG_PATH_SOURCE:
-            if (strnicmp(path,src_root,src_root_len)!=0 && !ispathabs(path))
-                strins(path,src_root,NULL);
+			abspath = src_root;
             break;
         case FLAG_PATH_GENERATED:
-		{
-			size_t proj_root_len = strlen(project_root);
-			if (strnicmp(path, project_root, proj_root_len) != 0)
-				strins(path, project_root, NULL);
+			abspath = project_root;
 			break;
-		}
         case FLAG_PATH_COREMAKE:
-            if (strnicmp(path,coremake_root,coremake_root_len)!=0)
-                strins(path,coremake_root,NULL);
-            break;
+			abspath = coremake_root;
         }
+
+		if (abspath)
+		{
+			size_t abspath_len = strlen(abspath);
+			if (strnicmp(path, abspath, abspath_len) != 0)
+				strins(path, abspath, NULL);
+		}
 
         simplifypath(path,1);
         simplifypath(curr,1);
@@ -1274,35 +1281,37 @@ void getrelpath(char* path, int path_flags, const char* __curr, int curr_flags, 
     strcpy(__path,path);
 }
 
-void strip_path_abs(char *path, int flags, const char *projc_root)
+void strip_path_abs(char *path, int flags, const char *projc_root, const char *src_root, const char *coremake_root)
 {
+	const char *abspath = NULL;
     assert((flags & FLAG_PATH_MASK) != FLAG_PATH_NOT_PATH);
     switch (flags & FLAG_PATH_MASK)
     {
     case FLAG_PATH_GENERATED:
-	{
-		size_t proj_root_len = strlen(projc_root);
-		if (proj_root_len && strstr(path, projc_root) == path)
-			memmove(path, path + proj_root_len, strlen(path + proj_root_len) + 1);
+		abspath = projc_root;
 		break;
-	}
     case FLAG_PATH_COREMAKE:
-        if (coremake_root_len && strstr(path,coremake_root)==path)
-           memmove(path,path+coremake_root_len,strlen(path+coremake_root_len)+1);
+		abspath = coremake_root;
         break;
     case FLAG_PATH_SOURCE:
-        if (src_root_len && strstr(path,src_root)==path)
-            memmove(path,path+src_root_len,strlen(path+src_root_len)+1);
+		abspath = src_root;
         break;
     case FLAG_PATH_SYSTEM: // do nothing
         break;
     default: assert(0);
     }
+
+	if (abspath)
+	{
+		size_t abspath_len = strlen(abspath);
+		if (abspath_len && strstr(path, abspath) == path)
+			memmove(path, path + abspath_len, strlen(path + abspath_len) + 1);
+	}
 }
 
 static void reader_strip_abs(reader* p)
 {
-    strip_path_abs(p->token,p->r.flags,p->project_root);
+    strip_path_abs(p->token,p->r.flags,p->project_root, p->src_root, p->coremake_root);
 }
 
 void reader_filename(reader* p, int dst_flags)
@@ -1333,7 +1342,7 @@ void reader_filename(reader* p, int dst_flags)
         // adjust the pathes according to their modifier
         if ((dst_flags & FLAG_PATH_MASK) != (p->r.filename_kind & FLAG_PATH_MASK))
         {
-            if (coremake_root_len || (dst_flags & FLAG_PATH_MASK) != FLAG_PATH_COREMAKE) // keep the full path to get the coremake_root
+            if (p->coremake_root[0] || (dst_flags & FLAG_PATH_MASK) != FLAG_PATH_COREMAKE) // keep the full path to get the coremake_root
                 reader_strip_abs(p);
 
             switch (dst_flags & FLAG_PATH_MASK)
@@ -1342,10 +1351,10 @@ void reader_filename(reader* p, int dst_flags)
                 strins(p->token,p->project_root,NULL);
                 break;
             case FLAG_PATH_COREMAKE:
-                strins(p->token,coremake_root,NULL);
+                strins(p->token,p->coremake_root,NULL);
                 break;
             case FLAG_PATH_SOURCE:
-                strins(p->token,src_root,NULL);
+                strins(p->token,p->src_root,NULL);
                 break;
             }
             p->r.flags &= ~FLAG_PATH_MASK;
@@ -1423,7 +1432,7 @@ itemcond* load_cond(item* item, reader* file, int force)
 	return p;
 }
 
-int load_file(item* root,const char* filename, int file_kind, itemcond* cond0, const char *root_path);
+int load_file(item* root,const char* filename, itemcond* cond0, const char *root_path, const char *src_path, const char *coremake_path);
 int load_item(item* root,reader* file,int sub,itemcond* cond0)
 {
 	int result=0;
@@ -1459,14 +1468,14 @@ int load_item(item* root,reader* file,int sub,itemcond* cond0)
 						if ((entrystats.st_mode & S_IFDIR) && entry->d_name[0]!='.')
 						{
     						sprintf(file->token,"%s%s/%s.proj",path,entry->d_name,entry->d_name);
-							strip_path_abs(file->token, FLAG_PATH_GENERATED, file->project_root);
-                            if (!load_file(root,file->token,FLAG_PATH_SOURCE,cond0, file->project_root) && strrchr(entry->d_name,'-'))
+							strip_path_abs(file->token, FLAG_PATH_GENERATED, file->project_root, file->src_root, file->coremake_root);
+                            if (!load_file(root,file->token,cond0, file->project_root, file->src_root, file->coremake_root) && strrchr(entry->d_name,'-'))
                             {
                                 // if it's a UNIX library name, try without the version
 						        char *empty = strrchr(file->token,'-');
                                 *empty = 0;
                                 strcat(file->token,".proj");
-                                load_file(root,file->token,FLAG_PATH_SOURCE,cond0, file->project_root);
+                                load_file(root,file->token,cond0, file->project_root, file->src_root, file->coremake_root);
                             }
 						}
 					}
@@ -1477,7 +1486,7 @@ int load_item(item* root,reader* file,int sub,itemcond* cond0)
 			{
                 reader_token(file);
 				reader_filename(file,0);
-				load_file(root,file->token,FLAG_PATH_SOURCE,cond0, file->project_root);
+				load_file(root,file->token,cond0, file->project_root, file->src_root, file->coremake_root);
 			}
 		}
 		else
@@ -1645,7 +1654,7 @@ int load_item(item* root,reader* file,int sub,itemcond* cond0)
 				strcpy(root_path, file->project_root);
 				strcat(root_path, file->filename);
 				truncfilepath(root_path,0);
-				if (strcmp(root_path, file->project_root) == 0)
+				if (strcmp(root_path, file->src_root) == 0)
 					new_root = 0;
 				if (new_root)
 				{
@@ -1659,6 +1668,7 @@ int load_item(item* root,reader* file,int sub,itemcond* cond0)
 					/* switch the local reader to a new root */
 					reader_save(file, &old_reader);
 					strcpy(file->project_root, root_path); /* TODO fix out of tree build */
+					strcpy(file->src_root, root_path);
 					memmove(file->filename, getfilename(file->filename), strlen(file->filename) + 1);
 					//chdir(file->project_root);
 				}
@@ -1757,13 +1767,13 @@ int load_item(item* root,reader* file,int sub,itemcond* cond0)
 
                         path[0]=0;
                         strins(path,file->filename,getfilename(file->filename));
-                        strip_path_abs(path,file->r.filename_kind, file->project_root);
+                        strip_path_abs(path,file->r.filename_kind, file->project_root, file->src_root, file->coremake_root);
                         if (generated_dir)
                             strins(path,file->project_root,NULL);
                         else if (coremake_dir)
-                            strins(path,coremake_root,NULL);
+                            strins(path,file->coremake_root,NULL);
                         else
-                            strins(path,src_root,NULL);
+                            strins(path,file->src_root,NULL);
 
 						j = item_find_add(v,path,1);
                         if (generated_dir)
@@ -1849,19 +1859,21 @@ int load_item(item* root,reader* file,int sub,itemcond* cond0)
 	return result;
 }
 
-int load_file(item* root,const char* filename, int file_kind, itemcond* cond, const char *projt_root)
+int load_file(item* root,const char* filename, itemcond* cond, const char *projt_root, const char *src_path, const char *coremake_path)
 {
 	reader r;
 	assert(strcmp(root->parent->value,ROOT_NAME)==0);
     reader_init(&r);
 	strcpy(r.filename,filename);
 	strcpy(r.project_root, projt_root);
+	strcpy(r.src_root, src_path);
+	strcpy(r.coremake_root, coremake_path);
 	pathunix(r.filename);
 	r.r.f = fopen(filename,"r");
 	r.pos = r.line;
 	if (r.r.f)
 	{
-        r.r.filename_kind = file_kind;
+        r.r.filename_kind = FLAG_PATH_SOURCE;
 		load_item(root,&r,0,cond);
 		fclose(r.r.f);
         reader_free(&r);
@@ -2156,11 +2168,11 @@ int getpri(item* p)
 
 int tokeneval(char* s,int skip,build_pos* pos,reader* error, int extra_cmd);
 void create_missing_dirs(const char *path);
-void getabspath(char* path, int path_flags, const char *rel_path, int rel_flags, const char *prj_root);
+void getabspath(char* path, int path_flags, const char *rel_path, int rel_flags, const char *prj_root, const char *src_root, const char *coremake_root);
 void compile_file(item* p, const char *src, const char *dst, int flags, build_pos *pos, int automake);
 int build_parse(item* p, reader* file, int sub, int skip, build_pos* pos0);
 
-void preprocess_stdafx_includes(item* p,int lib, const char *p_root)
+void preprocess_stdafx_includes(item* p,int lib, const char *p_root, const char *src_root, const char *coremake_root)
 {
 	item** child;
 	if (!p) return;
@@ -2181,8 +2193,8 @@ void preprocess_stdafx_includes(item* p,int lib, const char *p_root)
             continue;
 
         strcpy(gen_path,path->value);
-        strip_path_abs(gen_path,path->flags, p_root);
-        getabspath(gen_path,FLAG_PATH_GENERATED,"",FLAG_PATH_GENERATED, p_root);
+        strip_path_abs(gen_path,path->flags, p_root, src_root, coremake_root);
+        getabspath(gen_path,FLAG_PATH_GENERATED,"",FLAG_PATH_GENERATED, p_root, src_root, coremake_root);
 
         if (!plugin)
 		    for (i=0;i<item_childcount(*child);++i)
@@ -2276,7 +2288,7 @@ void preprocess_generate(item* p)
     }
 }
 
-void preprocess_automake(item* p, const char *pj_root)
+void preprocess_automake(item* p, const char *pj_root, const char *src_root, const char *coremake_root)
 {
     item** child;
     if (!p) return;
@@ -2291,8 +2303,8 @@ void preprocess_automake(item* p, const char *pj_root)
             continue;
 
         strcpy(gen_path, path->value);
-        strip_path_abs(gen_path, path->flags, pj_root);
-        getabspath(gen_path, FLAG_PATH_GENERATED, "", FLAG_PATH_GENERATED, pj_root);
+        strip_path_abs(gen_path, path->flags, pj_root, src_root, coremake_root);
+        getabspath(gen_path, FLAG_PATH_GENERATED, "", FLAG_PATH_GENERATED, pj_root, src_root, coremake_root);
 
         for (i = 0; i<item_childcount(src_am); ++i)
         {
@@ -2314,7 +2326,7 @@ void preprocess_automake(item* p, const char *pj_root)
     }
 }
 
-void preprocess_stdafx(item* p,int lib, const char *pro_root)
+void preprocess_stdafx(item* p,int lib, const char *pro_root, const char *src_root, const char *coremake_root)
 {
 	item** child;
 	if (!p) return;
@@ -2339,8 +2351,8 @@ void preprocess_stdafx(item* p,int lib, const char *pro_root)
         if (path)
         {
             strcpy(gen_path,path->value);
-            strip_path_abs(gen_path,path->flags, pro_root);
-            getabspath(gen_path,FLAG_PATH_GENERATED,"",FLAG_PATH_GENERATED, pro_root);
+            strip_path_abs(gen_path,path->flags, pro_root, src_root, coremake_root);
+            getabspath(gen_path,FLAG_PATH_GENERATED,"",FLAG_PATH_GENERATED, pro_root, src_root, coremake_root);
         }
 
         if (!plugin)
@@ -2366,6 +2378,8 @@ void preprocess_stdafx(item* p,int lib, const char *pro_root)
                             if (r.r.f)
                             {
 								strcpy(r.project_root, pro_root);
+								strcpy(r.src_root, src_root);
+								strcpy(r.coremake_root, coremake_root);
 								if (reader_line(&r))
                                 {
                                     if (stricmp(r.line,"8")!=0 && stricmp(r.line,"9")!=0 && stricmp(r.line,"10")!=0)
@@ -2534,7 +2548,7 @@ void preprocess_stdafx(item* p,int lib, const char *pro_root)
 
 		if (path)
 		{
-            preprocess_stdafx_includes(p,lib, pro_root);
+            preprocess_stdafx_includes(p,lib, pro_root, src_root, coremake_root);
 
             if (prj)
             {
@@ -3669,7 +3683,7 @@ void preprocess_sort(item* p)
     }
 }
 
-void preprocess(item* root, const char *pr_root)
+void preprocess(item* root, const char *pr_root, const char *src_root, const char *coremake_root)
 {
 	item* i;
     item* con_to_exe;
@@ -3812,7 +3826,7 @@ void preprocess(item* root, const char *pr_root)
 
     for (target = 0; all_targets[target].name; target++)
         if (all_targets[target].output_name)
-            preprocess_stdafx_includes(item_find(root, all_targets[target].name), all_targets[target].is_lib, pr_root);
+            preprocess_stdafx_includes(item_find(root, all_targets[target].name), all_targets[target].is_lib, pr_root, src_root, coremake_root);
 //	preprocess_stdafx_includes(item_find(p,"dll_android"),0);
 
     preprocess_generate(item_find(root, "generate"));
@@ -3827,7 +3841,7 @@ void preprocess(item* root, const char *pr_root)
 
     for (target = 0; all_targets[target].name; target++)
         if (all_targets[target].output_name)
-	        preprocess_stdafx(item_find(root, all_targets[target].name), all_targets[target].is_lib, pr_root);
+	        preprocess_stdafx(item_find(root, all_targets[target].name), all_targets[target].is_lib, pr_root, src_root, coremake_root);
 //	preprocess_stdafx(item_find(p,"dll_android"),1);
 
     for (target = 0; all_targets[target].name; target++)
@@ -3845,7 +3859,7 @@ void preprocess(item* root, const char *pr_root)
 
     for (target = 0; all_targets[target].name; target++)
         if (all_targets[target].output_name)
-            preprocess_automake(item_find(root, all_targets[target].name), pr_root);
+            preprocess_automake(item_find(root, all_targets[target].name), pr_root, src_root, coremake_root);
 }
 
 #define MAX_PUSHED_PATH  8
@@ -3884,7 +3898,7 @@ void simplifypath(char* path, int head)
     }
 }
 
-void getabspath(char* path, int path_flags, const char *rel_path, int rel_flags, const char *prj_root)
+void getabspath(char* path, int path_flags, const char *rel_path, int rel_flags, const char *prj_root, const char *src_root, const char *coremake_root)
 {
     assert((path_flags & FLAG_PATH_MASK) != FLAG_PATH_NOT_PATH);
     if (!(path_flags & FLAG_PATH_SET_ABSOLUTE))
@@ -3975,12 +3989,12 @@ int tokeneval(char* s,int skip,build_pos* pos,reader* error, int extra_cmd)
                             exit(1);
                         }
                         strcpy(name, s);
-                        getabspath(name, flags, buildpath[curr_build - 1], buildflags[curr_build - 1], error->project_root);
+                        getabspath(name, flags, buildpath[curr_build - 1], buildflags[curr_build - 1], error->project_root, error->src_root, error->coremake_root);
                         addendpath(name);
                         strcpy(buildpath[curr_build], name);
                         buildflags[curr_build] = flags;
 
-                        getrelpath(name, flags, buildpath[curr_build - 1], buildflags[curr_build - 1], 0, 0, error->project_root);
+                        getrelpath(name, flags, buildpath[curr_build - 1], buildflags[curr_build - 1], 0, 0, error->project_root, error->src_root, error->coremake_root);
                         truncfilepath(name, 1);
 
                         s = strcpy(s0, name);
@@ -4002,7 +4016,7 @@ int tokeneval(char* s,int skip,build_pos* pos,reader* error, int extra_cmd)
                                 exit(1);
                             }
                             strcpy(name, buildpath[curr_build]);
-                            getrelpath(name, buildflags[curr_build], buildpath[curr_build + 1], buildflags[curr_build + 1], 0, 0, error->project_root);
+                            getrelpath(name, buildflags[curr_build], buildpath[curr_build + 1], buildflags[curr_build + 1], 0, 0, error->project_root, error->src_root, error->coremake_root);
                             truncfilepath(name, 1);
 
                             s = strcpy(s0, name);
@@ -4258,7 +4272,7 @@ int tokeneval(char* s,int skip,build_pos* pos,reader* error, int extra_cmd)
 
                             // force a relative path by default
                             if ((value_flags & FLAG_PATH_MASK) != FLAG_PATH_NOT_PATH)
-                                strip_path_abs(value, value_flags, error->project_root);
+                                strip_path_abs(value, value_flags, error->project_root, error->src_root, error->coremake_root);
 
                             if (in_generated==1)
                             {
@@ -4272,9 +4286,9 @@ int tokeneval(char* s,int skip,build_pos* pos,reader* error, int extra_cmd)
                             }
 
                             if (relpath)
-								getrelpath(value,value_flags,buildpath[curr_build],buildflags[curr_build],delend,levelup, error->project_root);
+								getrelpath(value,value_flags,buildpath[curr_build],buildflags[curr_build],delend,levelup, error->project_root, error->src_root, error->coremake_root);
                             if (abspath)
-                                getabspath(value,value_flags,buildpath[curr_build],buildflags[curr_build], error->project_root);
+                                getabspath(value,value_flags,buildpath[curr_build],buildflags[curr_build], error->project_root, error->src_root, error->coremake_root);
 							if (filepath) truncfilepath(value,delend);
 							if (fileupper) truncfileupper(value);
 							if (filename) truncfilename(value);
@@ -4332,7 +4346,7 @@ int tokeneval(char* s,int skip,build_pos* pos,reader* error, int extra_cmd)
                                     strcpy(path,filename);
                                     tokeneval(path,0,pos,error,extra_cmd);
                                     pathunix(path);
-                                    getabspath(path,FLAG_PATH_SOURCE,buildpath[curr_build],buildflags[curr_build], error->project_root);
+                                    getabspath(path,FLAG_PATH_SOURCE,buildpath[curr_build],buildflags[curr_build], error->project_root, error->src_root, error->coremake_root);
                                     if (stat(path,&s)!=0)
                                         name0[0]=0;
                                 }
@@ -4365,7 +4379,7 @@ int tokeneval(char* s,int skip,build_pos* pos,reader* error, int extra_cmd)
                                 strcpy(path,(*child)->value);
                                 tokeneval(path,0,pos,error,extra_cmd);
                                 pathunix(path);
-                                getabspath(path,FLAG_PATH_SOURCE,buildpath[curr_build],buildflags[curr_build], error->project_root);
+                                getabspath(path,FLAG_PATH_SOURCE,buildpath[curr_build],buildflags[curr_build], error->project_root, error->src_root, error->coremake_root);
                                 if (stat(path,&s)!=0)
                                     continue;
                             }
@@ -4385,7 +4399,7 @@ int tokeneval(char* s,int skip,build_pos* pos,reader* error, int extra_cmd)
                             result |= name_flags & FLAG_PATH_MASK;
                         }
                         if (skip || !abspath)
-                            strip_path_abs(name, name_flags, error->project_root);
+                            strip_path_abs(name, name_flags, error->project_root, error->src_root, error->coremake_root);
                         else
                             is_relpath = 0;
                     }
@@ -4402,9 +4416,9 @@ int tokeneval(char* s,int skip,build_pos* pos,reader* error, int extra_cmd)
                     }
 
                     if (is_relpath && relpath)
-						getrelpath(name,name_flags,buildpath[curr_build],buildflags[curr_build],delend,levelup, error->project_root);
+						getrelpath(name,name_flags,buildpath[curr_build],buildflags[curr_build],delend,levelup, error->project_root, error->src_root, error->coremake_root);
                     if (!skip && abspath && is_relpath)
-                        getabspath(name,name_flags,buildpath[curr_build],buildflags[curr_build], error->project_root);
+                        getabspath(name,name_flags,buildpath[curr_build],buildflags[curr_build], error->project_root, error->src_root, error->coremake_root);
 					if (filepath) truncfilepath(name,delend);
 					if (fileupper) truncfileupper(name);
 					if (filename) truncfilename(name);
@@ -4838,7 +4852,7 @@ void compile_file(item* p, const char *src, const char *dst, int flags, build_po
     reader_init(&r);
     getarg(r.filename,&src);
     pathunix(r.filename);
-    getabspath(r.filename,flags,"",FLAG_PATH_SOURCE, NULL);
+    getabspath(r.filename,flags,"",FLAG_PATH_SOURCE, NULL, NULL, NULL);
     r.r.f = fopen(r.filename,"r");
     r.r.flags = flags;
     r.pos = r.line;
@@ -4854,7 +4868,7 @@ void compile_file(item* p, const char *src, const char *dst, int flags, build_po
         int backupflags = buildflags[curr_build];
         strcpy(backup,buildpath[curr_build]);
         strcpy(buildpath[curr_build], dst);
-        getabspath(buildpath[curr_build],FLAG_PATH_GENERATED|(ispathabs(buildpath[curr_build])?FLAG_PATH_SET_ABSOLUTE:0),"",FLAG_PATH_GENERATED, r.project_root);
+        getabspath(buildpath[curr_build],FLAG_PATH_GENERATED|(ispathabs(buildpath[curr_build])?FLAG_PATH_SET_ABSOLUTE:0),"",FLAG_PATH_GENERATED, r.project_root, r.src_root, r.coremake_root);
         simplifypath(buildpath[curr_build],0);
         buildflags[curr_build] = FLAG_PATH_GENERATED;
 
@@ -4909,7 +4923,7 @@ void compile_file(item* p, const char *src, const char *dst, int flags, build_po
     reader_free(&r);
 }
 
-void build_file(item* p,const char* filename, int reader_flags, const char *pjr_root);
+void build_file(item* p,const char* filename, int reader_flags, const char *pjr_root, const char *src_root, const char *coremake_root);
 int build_parse(item* p,reader* file,int sub,int skip,build_pos* pos0)
 {
 	int bin;
@@ -4939,7 +4953,7 @@ int build_parse(item* p,reader* file,int sub,int skip,build_pos* pos0)
             reader_token(file);
 			reader_filename(file,FLAG_PATH_COREMAKE);
             if (!skip && !(file->r.flags & FLAG_NO_INCLUDE))
-                build_file(p, file->token, FLAG_PATH_COREMAKE, file->project_root);
+                build_file(p, file->token, FLAG_PATH_COREMAKE, file->project_root, file->src_root, file->coremake_root);
 		}
 		else
 		if (is_sharped && reader_istoken(file,"undef"))
@@ -4998,22 +5012,22 @@ int build_parse(item* p,reader* file,int sub,int skip,build_pos* pos0)
                 {
                     item* no_include = item_find(*config->child, "no_include");
                     set_path_type(config,FLAG_PATH_GENERATED);
-					build_file(p,getvalue(config)->value, FLAG_PATH_GENERATED | (no_include?FLAG_NO_INCLUDE:0), file->project_root);
+					build_file(p,getvalue(config)->value, FLAG_PATH_GENERATED | (no_include?FLAG_NO_INCLUDE:0), file->project_root, file->src_root, file->coremake_root);
                 }
 				config = item_find(getconfig(p),"COREMAKE_CONFIG_HELPER");
 				if (config && config->flags & FLAG_DEFINED)
 				{
-					strcpy(tmpstr,coremake_root);
+					strcpy(tmpstr,file->coremake_root);
 					strcat(tmpstr,"config_helper.h");
-					build_file(p,tmpstr, FLAG_PATH_COREMAKE, file->project_root);
+					build_file(p,tmpstr, FLAG_PATH_COREMAKE, file->project_root, file->src_root, file->coremake_root);
 				}
 				config = item_find_in_root(p,"config_cleaner", 0);
 				if (config && getvalue(config))
                 {
                     set_path_type(config,FLAG_PATH_SOURCE);
-					build_file(p,getvalue(config)->value, FLAG_PATH_SOURCE, file->project_root);
+					build_file(p,getvalue(config)->value, FLAG_PATH_SOURCE, file->project_root, file->src_root, file->coremake_root);
                 }
-				preprocess(p, file->project_root);
+				preprocess(p, file->project_root, file->src_root, file->coremake_root);
 			}
 		}
 		else
@@ -5374,7 +5388,7 @@ int build_parse(item* p,reader* file,int sub,int skip,build_pos* pos0)
 				strcat(file->token,".tmp");
 				strcpy(buildpath[curr_build],file->token);
                 simplifypath(buildpath[curr_build],0);
-                getabspath(buildpath[curr_build],buildflags[curr_build],"",buildflags[curr_build], file->project_root);
+                getabspath(buildpath[curr_build],buildflags[curr_build],"",buildflags[curr_build], file->project_root, file->src_root, file->coremake_root);
 				create_missing_dirs(buildpath[curr_build]);
 				build = fopen(buildpath[curr_build],bin?"wb":"w");
 				if (!build)
@@ -5411,7 +5425,7 @@ int build_parse(item* p,reader* file,int sub,int skip,build_pos* pos0)
 					printf("can't push directory %s, limit reached\r\n",file->token);
 					exit(1);
                 }
-                getabspath(file->token,flags,buildpath[curr_build-1],buildflags[curr_build-1], file->project_root);
+                getabspath(file->token,flags,buildpath[curr_build-1],buildflags[curr_build-1], file->project_root, file->src_root, file->coremake_root);
                 addendpath(file->token);
                 strcpy(buildpath[curr_build],file->token);
                 buildflags[curr_build] = flags;
@@ -5435,7 +5449,7 @@ int build_parse(item* p,reader* file,int sub,int skip,build_pos* pos0)
 			int flags = reader_tokeneval(file,skip,0,&pos,0);
 			if (!skip)
             {
-                getabspath(file->token,flags,"",FLAG_PATH_GENERATED, file->project_root);
+                getabspath(file->token,flags,"",FLAG_PATH_GENERATED, file->project_root, file->src_root, file->coremake_root);
 				create_missing_dirs(file->token);
             }
 		}
@@ -5457,7 +5471,7 @@ int build_parse(item* p,reader* file,int sub,int skip,build_pos* pos0)
                 {
                     getarg(tmpstr,&s);
 	                pathunix(tmpstr);
-                    getabspath(tmpstr,flags,"",buildflags[curr_build], file->project_root);
+                    getabspath(tmpstr,flags,"",buildflags[curr_build], file->project_root, file->src_root, file->coremake_root);
                     create_missing_dirs(tmpstr);
                     dst = fopen(tmpstr, "wb");
                     if (!dst)
@@ -5518,13 +5532,15 @@ int build_parse(item* p,reader* file,int sub,int skip,build_pos* pos0)
 	return result;
 }
 
-void build_file(item* p,const char* filename, int reader_flags, const char *pjr_root)
+void build_file(item* p,const char* filename, int reader_flags, const char *pjr_root, const char *src_root, const char *coremake_root)
 {
 	reader r;
     reader_init(&r);
 	strcpy(r.filename,filename);
 	pathunix(r.filename);
 	strcpy(r.project_root, pjr_root);
+	strcpy(r.src_root, src_root);
+	strcpy(r.coremake_root, coremake_root);
 	r.r.f = fopen(filename,"r");
 	r.pos = r.line;
 	if (!r.r.f)
@@ -5539,7 +5555,7 @@ void build_file(item* p,const char* filename, int reader_flags, const char *pjr_
     reader_free(&r);
 }
 
-item* default_workspace(item* workspace,item* i,item* p)
+item* default_workspace(item* workspace,item* i,item* p, const char *proj)
 {
 	item** child;
 	if (!p) return i;
@@ -5562,6 +5578,8 @@ int main(int argc, char** argv)
 	item* i;
 	char path[MAX_PATH];
 	char proj_root[MAX_PATH];
+	char src_root[MAX_PATH] = "";
+	char coremake_root[MAX_PATH] = "";
 	char root_forced = 0;
 	char platform[MAX_PATH] = "";
 	char proj[MAX_PATH] = "root.proj";
@@ -5601,7 +5619,6 @@ int main(int argc, char** argv)
                     simplifypath(src_root,0);
                 }
                 addendpath(src_root);
-                src_root_len = strlen(src_root);
                 break;
 			}
 		}
@@ -5616,7 +5633,6 @@ int main(int argc, char** argv)
 
     if (!src_root[0])
         strcpy(src_root, proj_root);
-	src_root_len = strlen(src_root);
 
 	item *universe = item_find_add(NULL, "UNIVERSE", 0);
 
@@ -5625,7 +5641,7 @@ int main(int argc, char** argv)
 	item* root = item_find_add(all_roots, proj_root, 0);
 	getconfig(root);
 
-    if (!load_file(root,path,FLAG_PATH_SOURCE,NULL, proj_root) && !root_forced)
+    if (!load_file(root,path,NULL, proj_root, src_root, coremake_root) && !root_forced)
 	{
         // try <directory>.proj
 		strcpy(proj,src_root);
@@ -5633,7 +5649,7 @@ int main(int argc, char** argv)
         truncfilename(proj);
 		strcat(proj,".proj");
         strins(proj,src_root,NULL);
-		if (!load_file(root,proj,FLAG_PATH_SOURCE,NULL, proj_root))
+		if (!load_file(root,proj,NULL, proj_root, src_root, coremake_root))
         {
             // search for *.proj
 			DIR* dir = opendir(src_root);
@@ -5643,7 +5659,7 @@ int main(int argc, char** argv)
 				struct dirent* entry;
 				while ((entry = readdir(dir)) != NULL)
 					if (entry->d_name[0]!='.' && strrchr(entry->d_name,'.') &&
-                        stricmp(strrchr(entry->d_name,'.'),".proj")==0 && load_file(root,entry->d_name,FLAG_PATH_SOURCE,NULL, proj_root))
+                        stricmp(strrchr(entry->d_name,'.'),".proj")==0 && load_file(root,entry->d_name,NULL, proj_root, src_root, coremake_root))
                     {
                         found = 1;
                         strcpy(proj,entry->d_name);
@@ -5743,7 +5759,6 @@ int main(int argc, char** argv)
         strcpy(coremake_root,i->value);
     }
 	addendpath(coremake_root);
-    coremake_root_len = strlen(coremake_root);
 
     strcpy(path,coremake_root);
 	strcat(path,platform);
@@ -5757,7 +5772,7 @@ int main(int argc, char** argv)
 	for (child_root = all_roots->child; child_root != all_roots->childend; ++child_root)
 	{
 		/* TODO call this for each root in the universe */
-		build_file(*child_root, path, FLAG_PATH_COREMAKE, proj_root);
+		build_file(*child_root, path, FLAG_PATH_COREMAKE, proj_root, src_root, coremake_root);
 		if (build)
 		{
 			fclose(build);
