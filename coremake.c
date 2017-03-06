@@ -3171,9 +3171,10 @@ void preprocess_outputname(item* p,const char* outputname)
 	}
 }
 
-void preprocess_project(item* p)
+void preprocess_project(item* root)
 {
 	size_t i;
+	item* p = item_find(root, "project");
 	if (!p) return;
     for (i=0;i<item_childcount(p);++i)
 	{
@@ -5714,7 +5715,7 @@ int main(int argc, char** argv)
         i=default_workspace(w,i,item_find(root,"exe_android"), proj);
     }
 
-	preprocess_project(item_find(root,"project"));
+	preprocess_project(root);
 
 	if (dump)
 		dumpitem(root,1);
