@@ -427,7 +427,7 @@ IF defined(TARGET_PALMOS)
   PRINTNL $(BUILD_M68K)%.%(NAME).o: %.c
   PRINTNL 	$(hide)echo compiling $<
   PRINTNL 	$(hide)mkdir -p $(BUILD_M68K)$(*D)  
-  PRINTNL 	$(hide)$(CC_M68K) -Wall $(CFLAGS_M68K) -c $< -o $@
+  PRINTNL 	$(hide)$(CC_M68K) $(CFLAGS_M68K) -c $< -o $@
   PRINTNL 
   PRINTNL $(BUILD_M68K)%.ro: %.rcp
   PRINTNL 	$(hide)echo compiling $<
@@ -607,66 +607,66 @@ ENDIF
 PRINTNL $(BUILD)%.%(NAME).o: %(!ROOTPATH)%.c
 PRINTNL 	$(hide)echo compiling $<
 PRINTNL 	$(hide)mkdir -p $(BUILD)$(*D)
-PRINTNL 	$(hide)$(CCENV) $(CC) -Wall $(CFLAGS) $(CCFLAGS) -c $< -o $@ -MMD -MP -MF $@.d
+PRINTNL 	$(hide)$(CCENV) $(CC) $(CFLAGS) $(CCFLAGS) -c $< -o $@ -MMD -MP -MF $@.d
 PRINTNL 
 PRINTNL $(BUILD)%.%(NAME).o: %.c
 PRINTNL 	$(hide)echo compiling $<
 PRINTNL 	$(hide)mkdir -p $(BUILD)$(*D)
-PRINTNL 	$(hide)$(CCENV) $(CC) -Wall $(CFLAGS) $(CCFLAGS) -c $< -o $@ -MMD -MP -MF $@.d
+PRINTNL 	$(hide)$(CCENV) $(CC) $(CFLAGS) $(CCFLAGS) -c $< -o $@ -MMD -MP -MF $@.d
 PRINTNL 
 FOR EACH FUNC_C
   PRINTNL $(BUILD)%.%(NAME).%(../NAME).o: %(!ROOTPATH)%.c
   PRINTNL 	$(hide)echo compiling $< %(NAME)
   PRINTNL 	$(hide)mkdir -p $(BUILD)$(*D)
-  PRINTNL 	$(hide)$(CCENV) $(CC) -Wall $(CFLAGS) $(CCFLAGS) -DF_%(NAME) -c $< -o $@ -MMD -MP -MF $@.d
+  PRINTNL 	$(hide)$(CCENV) $(CC) $(CFLAGS) $(CCFLAGS) -DF_%(NAME) -c $< -o $@ -MMD -MP -MF $@.d
   PRINTNL 
   PRINTNL $(BUILD)%.%(NAME).%(../NAME).o: %.c
   PRINTNL 	$(hide)echo compiling $< %(NAME)
   PRINTNL 	$(hide)mkdir -p $(BUILD)$(*D)
-  PRINTNL 	$(hide)$(CCENV) $(CC) -Wall $(CFLAGS) $(CCFLAGS) -DF_%(NAME) -c $< -o $@ -MMD -MP -MF $@.d
+  PRINTNL 	$(hide)$(CCENV) $(CC) $(CFLAGS) $(CCFLAGS) -DF_%(NAME) -c $< -o $@ -MMD -MP -MF $@.d
   PRINTNL 
 ENDFOR
 PRINTNL $(BUILD)%.%(NAME).o: %(!ROOTPATH)%.m
 PRINTNL 	$(hide)echo compiling $<
 PRINTNL 	$(hide)mkdir -p $(BUILD)$(*D)
-PRINTNL 	$(hide)$(CCENV) $(CC) -Wall $(CFLAGS) $(CCFLAGS) -c $< -o $@ -MMD -MP -MF $@.d
+PRINTNL 	$(hide)$(CCENV) $(CC) $(CFLAGS) $(CCFLAGS) -c $< -o $@ -MMD -MP -MF $@.d
 PRINTNL 
 PRINTNL $(BUILD)%.%(NAME).o: %.m
 PRINTNL 	$(hide)echo compiling $<
 PRINTNL 	$(hide)mkdir -p $(BUILD)$(*D)
-PRINTNL 	$(hide)$(CCENV) $(CC) -Wall $(CFLAGS) $(CCFLAGS) -c $< -o $@ -MMD -MP -MF $@.d
+PRINTNL 	$(hide)$(CCENV) $(CC) $(CFLAGS) $(CCFLAGS) -c $< -o $@ -MMD -MP -MF $@.d
 PRINTNL 
 PRINTNL $(BUILD)%.%(NAME).o: %(!ROOTPATH)%.S
 PRINTNL 	$(hide)echo compiling $<
 PRINTNL 	$(hide)mkdir -p $(BUILD)$(*D)
-PRINTNL 	$(hide)$(CCENV) $(CC) -Wall $(SFLAGS) -c $< -o $@ -MMD -MP -MF $@.d
+PRINTNL 	$(hide)$(CCENV) $(CC) $(SFLAGS) -c $< -o $@ -MMD -MP -MF $@.d
 PRINTNL 
 PRINTNL $(BUILD)%.%(NAME).o: %.S
 PRINTNL 	$(hide)echo compiling $<
 PRINTNL 	$(hide)mkdir -p $(BUILD)$(*D)
-PRINTNL 	$(hide)$(CCENV) $(CC) -Wall $(SFLAGS) -c $< -o $@ -MMD -MP -MF $@.d
+PRINTNL 	$(hide)$(CCENV) $(CC) $(SFLAGS) -c $< -o $@ -MMD -MP -MF $@.d
 PRINTNL 
 FOR EACH FUNC_S
   PRINTNL $(BUILD)%.%(NAME).%(../NAME).o: %(!ROOTPATH)%.S
   PRINTNL 	$(hide)echo compiling $< %(NAME)
   PRINTNL 	$(hide)mkdir -p $(BUILD)$(*D)
-  PRINTNL 	$(hide)$(CCENV) $(CC) -Wall $(SFLAGS) -DF_%(NAME) -c $< -o $@ -MMD -MP -MF $@.d
+  PRINTNL 	$(hide)$(CCENV) $(CC) $(SFLAGS) -DF_%(NAME) -c $< -o $@ -MMD -MP -MF $@.d
   PRINTNL 
   PRINTNL $(BUILD)%.%(NAME).%(../NAME).o: %.S
   PRINTNL 	$(hide)echo compiling $< %(NAME)
   PRINTNL 	$(hide)mkdir -p $(BUILD)$(*D)
-  PRINTNL 	$(hide)$(CCENV) $(CC) -Wall $(SFLAGS) -DF_%(NAME) -c $< -o $@ -MMD -MP -MF $@.d
+  PRINTNL 	$(hide)$(CCENV) $(CC) $(SFLAGS) -DF_%(NAME) -c $< -o $@ -MMD -MP -MF $@.d
   PRINTNL 
 ENDFOR
 PRINTNL $(BUILD)%.%(NAME).o: %(!ROOTPATH)%.cpp
 PRINTNL 	$(hide)echo compiling $<
 PRINTNL 	$(hide)mkdir -p $(BUILD)$(*D)
-PRINTNL 	$(hide)$(CCENV) $(CXX) -Wall $(CXXFLAGS) $(CCFLAGS) -c $< -o $@ -MMD -MP -MF $@.d
+PRINTNL 	$(hide)$(CCENV) $(CXX) $(CXXFLAGS) $(CCFLAGS) -c $< -o $@ -MMD -MP -MF $@.d
 PRINTNL 
 PRINTNL $(BUILD)%.%(NAME).o: %.cpp
 PRINTNL 	$(hide)echo compiling $<
 PRINTNL 	$(hide)mkdir -p $(BUILD)$(*D)
-PRINTNL 	$(hide)$(CCENV) $(CXX) -Wall $(CXXFLAGS) $(CCFLAGS) -c $< -o $@ -MMD -MP -MF $@.d
+PRINTNL 	$(hide)$(CCENV) $(CXX) $(CXXFLAGS) $(CCFLAGS) -c $< -o $@ -MMD -MP -MF $@.d
 PRINTNL 
 IF (%(ASM)!="")
   PRINTNL $(BUILD)%.%(NAME).o: %(!ROOTPATH)%.asm
@@ -716,22 +716,22 @@ IF defined(TARGET_PS2SDK)
   PRINTNL $(BUILD)%.%(NAME).o: %(!ROOTPATH)%.tab
   PRINTNL 	$(hide)echo compiling $<
   PRINTNL 	$(hide)mkdir -p $(BUILD)$(*D)
-  PRINTNL 	$(hide)$(CCENV) $(CC) -Wall $(CFLAGS) $(CCFLAGS) -x c -include $(<D)/irx_imports.h -c $< -o $@ -MMD -MP -MF $@.d
+  PRINTNL 	$(hide)$(CCENV) $(CC) $(CFLAGS) $(CCFLAGS) -x c -include $(<D)/irx_imports.h -c $< -o $@ -MMD -MP -MF $@.d
   PRINTNL 
   PRINTNL $(BUILD)%.%(NAME).o: %.tab
   PRINTNL 	$(hide)echo compiling $<
   PRINTNL 	$(hide)mkdir -p $(BUILD)$(*D)
-  PRINTNL 	$(hide)$(CCENV) $(CC) -Wall $(CFLAGS) $(CCFLAGS) -x c -include $(<D)/irx_imports.h -c $< -o $@ -MMD -MP -MF $@.d
+  PRINTNL 	$(hide)$(CCENV) $(CC) $(CFLAGS) $(CCFLAGS) -x c -include $(<D)/irx_imports.h -c $< -o $@ -MMD -MP -MF $@.d
   PRINTNL 
   PRINTNL $(BUILD)%.%(NAME).o: %(!ROOTPATH)%.lst
   PRINTNL 	$(hide)echo compiling $<
   PRINTNL 	$(hide)mkdir -p $(BUILD)$(*D)
-  PRINTNL 	$(hide)$(CCENV) $(CC) -Wall $(CFLAGS) $(CCFLAGS) -x c -include $(<D)/irx_imports.h -c $< -o $@ -MMD -MP -MF $@.d
+  PRINTNL 	$(hide)$(CCENV) $(CC) $(CFLAGS) $(CCFLAGS) -x c -include $(<D)/irx_imports.h -c $< -o $@ -MMD -MP -MF $@.d
   PRINTNL 
   PRINTNL $(BUILD)%.%(NAME).o: %.lst
   PRINTNL 	$(hide)echo compiling $<
   PRINTNL 	$(hide)mkdir -p $(BUILD)$(*D)
-  PRINTNL 	$(hide)$(CCENV) $(CC) -Wall $(CFLAGS) $(CCFLAGS) -x c -include $(<D)/irx_imports.h -c $< -o $@ -MMD -MP -MF $@.d
+  PRINTNL 	$(hide)$(CCENV) $(CC) $(CFLAGS) $(CCFLAGS) -x c -include $(<D)/irx_imports.h -c $< -o $@ -MMD -MP -MF $@.d
   PRINTNL 
 ENDIF
 IF "%(UI_FORM_QT4)"!=""
@@ -769,9 +769,9 @@ IF "%(PRECOMPILED_HEADER)"!=""
   PRINTNL 	$(hide)echo precompiling header $<
   PRINTNL 	$(hide)-rm -f $@
   IF "%(>SOURCE)"=="c"
-    PRINTNL 	$(hide)$(CCENV) $(CC) -Wall $(CFLAGS) $(CCFLAGS) -c $< -o $@
+    PRINTNL 	$(hide)$(CCENV) $(CC) $(CFLAGS) $(CCFLAGS) -c $< -o $@
   ELSE
-    PRINTNL 	$(hide)$(CCENV) $(CXX) -Wall $(CXXFLAGS) $(CCFLAGS) -c $< -o $@
+    PRINTNL 	$(hide)$(CCENV) $(CXX) $(CXXFLAGS) $(CCFLAGS) -c $< -o $@
   ENDIF
   PRINTNL
 
@@ -779,9 +779,9 @@ IF "%(PRECOMPILED_HEADER)"!=""
   PRINTNL 	$(hide)echo precompiling header $<
   PRINTNL 	$(hide)-rm -f $@
   IF "%(>SOURCE)"=="c"
-    PRINTNL 	$(hide)$(CCENV) $(CC) -Wall $(CFLAGS) $(CCFLAGS) -c $< -o $@
+    PRINTNL 	$(hide)$(CCENV) $(CC) $(CFLAGS) $(CCFLAGS) -c $< -o $@
   ELSE
-    PRINTNL 	$(hide)$(CCENV) $(CXX) -Wall $(CXXFLAGS) $(CCFLAGS) -c $< -o $@
+    PRINTNL 	$(hide)$(CCENV) $(CXX) $(CXXFLAGS) $(CCFLAGS) -c $< -o $@
   ENDIF
   PRINTNL
 ENDIF
