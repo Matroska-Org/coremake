@@ -40,7 +40,7 @@ IF DEFINED(COMPILER_ICL9) || DEFINED(COMPILER_ICL11)
   PROJECT_EXT=icproj
   PROJECT_GUID={EAF909A5-FA59-4C3D-9431-0FCC20D5BCF9}
 ELSE
-  IF "%(VSVERSION)"=="14.00"
+  IF "%(VSVERSION)"=="14.00" || "%(VSVERSION)"=="15.00"
     PROJECT_EXT=vcxproj
   ELSE
     PROJECT_EXT=vcproj
@@ -59,7 +59,7 @@ FOR EACH WORKSPACE
     PRINTNL Microsoft Visual Studio Solution File, Format Version 10.00
     PRINTNL # Visual %(VSBUILDER)
   ELSE
-  IF "%(VSVERSION)"=="14.00"
+  IF "%(VSVERSION)"=="14.00" || "%(VSVERSION)"=="15.00"
     PRINTNL Microsoft Visual Studio Solution File, Format Version 12.00
     PRINTNL # Visual %(VSBUILDER)
   ELSE
@@ -89,7 +89,7 @@ FOR EACH WORKSPACE
     ELSE
       PRINTNL Project("%(PROJECT_GUID)") = "%(NAME)", "%(¯~!PATH)%(NAME).%(PROJECT_EXT)", "%(GUID)"
     ENDIF
-    IF "%(USE)"!="" && "%(VSVERSION)"!="14.00"
+    IF "%(USE)"!="" && "%(VSVERSION)"!="14.00" && "%(VSVERSION)"!="15.00"
       PRINTNL 	ProjectSection(ProjectDependencies) = postProject
       FOR EACH USE
         IF (%NOLIB)
@@ -110,7 +110,7 @@ FOR EACH WORKSPACE
 //  PRINTNL 	EndProjectSection
 //  PRINTNL EndProject
   PRINTNL Global
-  IF "%(VSVERSION)"=="8.00" || "%(VSVERSION)"=="9.00" || "%(VSVERSION)"=="14.00"
+  IF "%(VSVERSION)"!="7.10"
     PRINTNL 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
     IF %(TYPE)==LIB_CSHARP || %(TYPE)==DLL_CSHARP || %(TYPE)==EXE_CSHARP || %(TYPE)==CON_CSHARP
       PRINTNL 		%(TARG_DEBUG)|%(TARGNAME) = %(TARG_DEBUG)|Any CPU
@@ -128,7 +128,7 @@ FOR EACH WORKSPACE
     PRINTNL 		%(TARG_RELEASE) = %(TARG_RELEASE)
   ENDIF
   PRINTNL 	EndGlobalSection
-  IF "%(VSVERSION)"=="8.00" || "%(VSVERSION)"=="9.00" || "%(VSVERSION)"=="14.00"
+  IF "%(VSVERSION)"!="7.10"
     PRINTNL 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
   ELSE
     PRINTNL 	GlobalSection(ProjectConfiguration) = postSolution
@@ -189,7 +189,7 @@ FOR EACH WORKSPACE
     ENDFOR  
   ENDIF
   PRINTNL 	EndGlobalSection
-  IF "%(VSVERSION)"=="8.00" || "%(VSVERSION)"=="9.00" || "%(VSVERSION)"=="14.00"
+  IF "%(VSVERSION)"!="7.10"
     PRINTNL 	GlobalSection(SolutionProperties) = preSolution
     PRINTNL 		HideSolutionNode = FALSE
     PRINTNL 	EndGlobalSection
@@ -899,7 +899,7 @@ FOR EACH LIB,DLL,EXE,CON,GENERATE
   BSC_TOOL=VCBscMakeTool
   LINKER_TOOL=VCLinkerTool
   CMD_NEWLINE=#x0D;&#x0A;
-  IF "%(VSVERSION)"=="14.00"
+  IF "%(VSVERSION)"=="14.00" || "%(VSVERSION)"=="15.00"
     FILE %(¯PATH)%(NAME).vcxproj
     #include "vcxproj.inc"
   ELSE
