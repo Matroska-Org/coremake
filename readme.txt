@@ -233,6 +233,10 @@ vs_wm5s_armv4i
 vs_wm6p_armv4i
 vs_wm6s_armv4i
 vs_x64 : Windows 64bits on x64 built with MS Visual Studio 2005
+vs15_x64: Windows 64 bits on x64 built with MS Visual Studio 2015
+vs15_x64_clang: Windows 64 bits on x64 built with MS Visual Studio 2015 using ClangC2
+vs17_x64: Windows 64 bits on x64 built with MS Visual Studio 2017
+vs17_x64_clang: Windows 64 bits on x64 built with MS Visual Studio 2017 using ClangC2
 xcode_ios : iOS build for devices (except i386 for the simu)
 xcode_ios_simu: iOS i386 version to use with the simulator
 xcode_macosx
