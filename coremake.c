@@ -3144,8 +3144,10 @@ void preprocess_outputname(item* p,const char* outputname)
 {
 	item* output;
 	item** child;
+	const item* root;
 	if (!p) return;
-	output = getvalue(item_find(getconfig(p),outputname));
+	root = item_root(p, 0);
+	output = getvalue(item_find(getconfig(root),outputname));
 	for (child=p->child;child!=p->childend;++child)
 	{
 		if (!output)
