@@ -284,7 +284,7 @@ static item* item_find_in_root(const item* p, const char* name, int full)
 
 static item* getconfig(const item* p)
 {
-	return item_find(p,"config");
+	return item_find(item_root(p, 0),"config");
 }
 
 /* get the first value value of type item */
