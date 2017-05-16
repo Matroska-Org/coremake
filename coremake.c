@@ -626,66 +626,80 @@ itemcond* itemcond_or(itemcond* p,itemcond* cond)
 	return p;
 }
 
-static item* item_getmerge(item* p,const item* child,int removed,int *existed)
+static item* item_getmerge(item* into,const item* child,int removed,int *existed)
 {
     item* dup;
-	dup = item_find(p,child->value);
+	dup = item_find(into,child->value);
 	*existed = dup != NULL;
 	if (!dup)
-		dup = item_find_add(p,child->value,(child->flags & FLAG_DEFINED)==FLAG_DEFINED);
+		dup = item_find_add(into,child->value,(child->flags & FLAG_DEFINED)==FLAG_DEFINED);
     if (((child->flags & FLAG_REMOVED) || removed) && (!*existed || (dup->flags & FLAG_REMOVED)))
         dup->flags |= FLAG_REMOVED;
     else
         dup->flags &= ~FLAG_REMOVED;
     dup->flags |= (child->flags & ~FLAG_REMOVED);
+	if (dup->flags & FLAG_PATH_SOURCE)
+	{
+		item *src_root = item_root(child, 0);
+		item *dst_root = item_root(into, 0);
+		if (src_root != dst_root)
+		{
+			/* turn into an absolute path with the source root */
+			if (!(dup->flags & FLAG_PATH_SET_ABSOLUTE))
+			{
+				char new_path[MAX_PATH];
+				strcpy(new_path, src_root->value);
+				strcat(new_path, dup->value);
+				free(dup->value);
+				dup->value = strdup(new_path);
+				dup->flags |= FLAG_PATH_SET_ABSOLUTE;
+			}
+		}
+	}
     return dup;
 }
 
-static void item_merge2(item* p,const item* group,itemcond* cond0,int removed,int append_cond)
+static void item_merge2(item* into,const item* group,itemcond* cond0,int removed,int append_cond)
 {
-	if (group)
+	item** child;
+	itemcond* cond = itemcond_and(itemcond_dup(group->cond),cond0);
+
+	for (child = group->child;child != group->childend;++child)
 	{
-		item** child;
-		itemcond* cond = itemcond_and(itemcond_dup(group->cond),cond0);
-
-		for (child = group->child;child != group->childend;++child)
-		{
-			int child_exists;
-			item* dup = item_getmerge(p,*child,removed,&child_exists);
-			item_merge2(dup,*child,cond,removed,child_exists);
-		}
-
-		if (!item_childcount(group) || (p->flags & FLAG_ATTRIB))
-		{
-			if (append_cond)
-				p->cond = itemcond_or(p->cond,cond);
-			else
-			{
-				itemcond_delete(p->cond);
-				p->cond = itemcond_dup(cond);
-			}
-		}
-		itemcond_delete(cond);
+		int child_exists;
+		item* dup = item_getmerge(into,*child,removed,&child_exists);
+		item_merge2(dup,*child,cond,removed,child_exists);
 	}
+
+	if (!item_childcount(group) || (into->flags & FLAG_ATTRIB))
+	{
+		if (append_cond)
+			into->cond = itemcond_or(into->cond,cond);
+		else
+		{
+			itemcond_delete(into->cond);
+			into->cond = itemcond_dup(cond);
+		}
+	}
+	itemcond_delete(cond);
 }
 
-static void item_merge(item* p,const item* group,item* filter)
+static void item_merge(item* into,const item* group,item* filter)
 {
-	if (group)
+	if (!group) return;
+
+	int removed=0;
+	item* i;
+	itemcond* cond = NULL;
+	for (i=group->parent;i && !item_is_root(i);i=i->parent)
+		cond = itemcond_and(cond,i->cond);
+	if (filter)
 	{
-		int removed=0;
-		item* i;
-		itemcond* cond = NULL;
-		for (i=group->parent;i && !item_is_root(i);i=i->parent)
-			cond = itemcond_and(cond,i->cond);
-		if (filter)
-		{
-			removed = (filter->flags & FLAG_REMOVED)==FLAG_REMOVED;
-			cond = itemcond_and(cond,filter->cond);
-		}
-		item_merge2(p,group,cond,removed,1);
-		itemcond_delete(cond);
+		removed = (filter->flags & FLAG_REMOVED)==FLAG_REMOVED;
+		cond = itemcond_and(cond,filter->cond);
 	}
+	item_merge2(into,group,cond,removed,1);
+	itemcond_delete(cond);
 }
 
 static void item_merge_name(item* dst, const item* src, const char* value, item* cond)
@@ -765,7 +779,7 @@ static int reader_line(reader* p)
 	return 1;
 }
 
-char* strins(char* s,const char* begin,const char* end)
+static char* strins(char* s,const char* begin,const char* end)
 {
 	size_t n = end?end-begin:strlen(begin);
 	memmove(s+n,s,strlen(s)+1);
@@ -1277,7 +1291,7 @@ void getrelpath(char* path, int path_flags, const char* __curr, int curr_flags, 
     strcpy(__path,path);
 }
 
-void strip_path_abs(char *path, int flags, const char *projc_root, const char *src_root, const char *coremake_root)
+int strip_path_abs(char *path, int flags, const char *projc_root, const char *src_root, const char *coremake_root)
 {
 	const char *abspath = NULL;
     assert((flags & FLAG_PATH_MASK) != FLAG_PATH_NOT_PATH);
@@ -1302,7 +1316,10 @@ void strip_path_abs(char *path, int flags, const char *projc_root, const char *s
 		size_t abspath_len = strlen(abspath);
 		if (abspath_len && strstr(path, abspath) == path)
 			memmove(path, path + abspath_len, strlen(path + abspath_len) + 1);
+		else
+			return !(flags & FLAG_PATH_SET_ABSOLUTE);
 	}
+	return 1;
 }
 
 static void reader_strip_abs(reader* p)
@@ -3038,6 +3055,7 @@ static void merge_project(item* target,item* source,item* filter)
 {
 	size_t j;
 
+	/* copy source into tmp conditionally */
     item* tmp = item_find_add(NULL,"tmp",0);
 
 	item_add(tmp,item_find(source,"path"));
@@ -4363,7 +4381,7 @@ static int tokeneval(char* s,int skip,build_pos* pos,reader* error, int extra_cm
                             result |= name_flags & FLAG_PATH_MASK;
                         }
                         if (skip || !abspath)
-                            strip_path_abs(name, name_flags, error->project_root, error->src_root, error->coremake_root);
+                            is_relpath = strip_path_abs(name, name_flags, error->project_root, error->src_root, error->coremake_root);
                         else
                             is_relpath = 0;
                     }
