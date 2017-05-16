@@ -70,7 +70,8 @@ char buildpath[MAX_PUSHED_PATH][MAX_PATH];
 int buildflags[MAX_PUSHED_PATH];
 int curr_build = 0;
 
-#define ROOT_NAME  "ROOT"
+#define ROOT_NAME      "ROOT"
+#define UNIVERSE_NAME  "UNIVERSE"
 
 typedef struct reader_static
 {
@@ -265,9 +266,21 @@ static int item_is_root(const item *p)
 	return strcmp(p->parent->value, ROOT_NAME) == 0;
 }
 
+static int item_is_universe(const item *p)
+{
+	return strcmp(p->parent->value, UNIVERSE_NAME) == 0;
+}
+
 static const item* item_root(const item* p, int full)
 {
 	while (p->parent && (full || !item_is_root(p)))
+		p = p->parent;
+	return p;
+}
+
+static const item* item_universe(const item* p)
+{
+	while (p->parent && !item_is_universe(p))
 		p = p->parent;
 	return p;
 }
@@ -3175,15 +3188,11 @@ void preprocess_project(item* root)
 	}
 }
 
-static item *find_group(item *root, const char *name)
+static item *find_group_from_root(item *root, const char *name)
 {
 	if (!root) return NULL;
 	item* base_groups = item_find(root, "group");
-	item* result = item_find(base_groups, name);
-	if (result)
-		return result;
-
-	return find_group(item_find(root, ROOT_NAME), name);
+	return item_find(base_groups, name);
 }
 
 static void preprocess_use_group_root(item *root, item *targets, item *target)
@@ -3193,7 +3202,23 @@ static void preprocess_use_group_root(item *root, item *targets, item *target)
 	for (i = 0; i<item_childcount(use); ++i)
 	{
 		item *child = use->child[i];
-		item* group = find_group(root, child->value);
+		item* group = find_group_from_root(root, child->value);
+		if (!group)
+		{
+			const item *all_roots = item_universe(root);
+			if (all_roots)
+			{
+				item** child_root;
+				for (child_root = all_roots->child; !group && child_root != all_roots->childend; ++child_root)
+				{
+					if (*child_root == root)
+						continue;
+					if (!item_is_root(*child_root))
+						continue;
+					group = find_group_from_root(*child_root, child->value);
+				}
+			}
+		}
 		if (group)
 		{
 			merge_project(target, group, child);
@@ -5574,7 +5599,7 @@ int main(int argc, char** argv)
     if (!src_root[0])
         strcpy(src_root, proj_root);
 
-	item *universe = item_find_add(NULL, "UNIVERSE", 0);
+	item *universe = item_find_add(NULL, UNIVERSE_NAME, 0);
 
 	item *all_roots = item_find_add(universe, ROOT_NAME, 0);
 
