@@ -1688,8 +1688,13 @@ int load_item(item* root,reader* file,int sub,itemcond* cond0)
 			if (new_root)
 			{
 				char root_path[MAX_PATH];
-				strcpy(root_path, file->project_root);
-				strcat(root_path, file->filename);
+				if (ispathabs(file->filename))
+					strcpy(root_path, file->filename);
+				else
+				{
+					strcpy(root_path, file->project_root);
+					strcat(root_path, file->filename);
+				}
 				truncfilepath(root_path,0);
 				if (strcmp(root_path, file->src_root) == 0)
 					new_root = 0;
