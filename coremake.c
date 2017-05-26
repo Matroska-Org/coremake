@@ -1234,7 +1234,12 @@ void getrelpath(char* path, int path_flags, const char* __curr, int curr_flags, 
     pathunix(_curr);
     curr = _curr;
 
-    if (!(path_flags & FLAG_PATH_SET_ABSOLUTE))
+	if (path_flags & FLAG_PATH_SET_ABSOLUTE)
+	{
+		/* TODO handle this case */
+		assert(ispathabs(curr));
+	}
+
     {
 		const char *abspath = NULL;
         // ensure that we deal with absolute pathes to compare
@@ -2208,7 +2213,7 @@ int getpri(item* p)
 static int tokeneval(char* s,int skip,build_pos* pos,reader* error, int extra_cmd);
 static void create_missing_dirs(const char *path);
 static void getabspath(char* path, int path_flags, const char *rel_path, int rel_flags, const char *prj_root, const char *src_root, const char *coremake_root);
-static void compile_file(item* p, const char *src, const char *dst, int flags, build_pos *pos, int automake);
+static void compile_file(item* p, const char *src, const char *dst, int flags, build_pos *pos, int automake, const char *pjr_root, const char *src_root, const char *coremake_root);
 static int build_parse(item* p, reader* file, int sub, int skip, build_pos* pos0);
 
 void preprocess_stdafx_includes(item* p,int lib, const char *p_root, const char *src_root, const char *coremake_root)
@@ -2360,7 +2365,7 @@ void preprocess_automake(item* p, const char *pj_root, const char *src_root, con
             src = item_find_add(item_find_add(*child, "source", 0), file, 1);
             set_path_type(src, FLAG_PATH_GENERATED);
 
-            compile_file(src, (src_am->child[i])->value, file, FLAG_PATH_GENERATED, &compile_pos, 1);
+            compile_file(src, (src_am->child[i])->value, file, FLAG_PATH_GENERATED, &compile_pos, 1, pj_root, src_root, coremake_root);
         }
     }
 }
@@ -4826,7 +4831,7 @@ void getarg(char* s, const char** in)
     *s = 0;
 }
 
-static void compile_file(item* p, const char *src, const char *dst, int flags, build_pos *pos, int automake)
+static void compile_file(item* p, const char *src, const char *dst, int flags, build_pos *pos, int automake, const char *pjr_root, const char *src_root, const char *coremake_root)
 {
     char tmpstr[MAX_LINE];
     reader r;
@@ -4834,7 +4839,10 @@ static void compile_file(item* p, const char *src, const char *dst, int flags, b
     reader_init(&r);
     getarg(r.filename,&src);
     pathunix(r.filename);
-    getabspath(r.filename,flags,"",FLAG_PATH_SOURCE, NULL, NULL, NULL);
+	strcpy(r.project_root, pjr_root);
+	strcpy(r.src_root, src_root);
+	strcpy(r.coremake_root, coremake_root);
+	getabspath(r.filename,flags,"",FLAG_PATH_SOURCE, pjr_root, src_root, coremake_root);
     r.r.f = fopen(r.filename,"r");
     r.r.flags = flags;
     r.pos = r.line;
@@ -5205,7 +5213,7 @@ static int build_parse(item* p,reader* file,int sub,int skip,build_pos* pos0)
                 const char* s = file->token;
                 getarg(src, &s);
                 getarg(tmpstr, &s);
-                compile_file(p, src, tmpstr, flags, &pos, 0);
+                compile_file(p, src, tmpstr, flags, &pos, 0, file->project_root, file->src_root, file->coremake_root);
             }
         }
 		else
