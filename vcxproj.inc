@@ -144,7 +144,7 @@ PRINTNL   </PropertyGroup>
 PRINTNL   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='%(TARG_DEBUG)|%(TARGNAME)'">
 PRINTNL     <Midl>
 PRINTNL       <PreprocessorDefinitions>_DEBUG%(&TARGDEF:%=;%)%(&DEFINE:%=;%)%(&DEFINE_DEBUG:%=;%)</PreprocessorDefinitions>
-PRINTNL       <AdditionalIncludeDirectories>%(@&CONFIG_INCLUDE:%= ;%)%(@&INCLUDE:%= ;%)%(@&INCLUDE_DEBUG:%= ;%)%(@&SYSINCLUDE:%= ;%) ;%(&TARGINC)</AdditionalIncludeDirectories>
+PRINTNL       <AdditionalIncludeDirectories>%(@&CONFIG_INCLUDE:%=;%)%(@&INCLUDE:%=;%)%(@&INCLUDE_DEBUG:%=;%)%(@&SYSINCLUDE:%=;%);%(&TARGINC)</AdditionalIncludeDirectories>
 PRINTNL       <MkTypLibCompatible>false</MkTypLibCompatible>
 PRINTNL       <TypeLibraryName>$(TargetDir)$(ProjectName).tlb</TypeLibraryName>
 PRINTNL       <OutputDirectory>%(¯~!BUILDPATH)%(~§PATH)</OutputDirectory>
@@ -295,7 +295,7 @@ PRINTNL   </ItemDefinitionGroup>
 PRINTNL   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='%(TARG_RELEASE)|%(TARGNAME)'">
 PRINTNL     <Midl>
 PRINTNL       <PreprocessorDefinitions>NDEBUG%(&TARGDEF:%=;%)%(&DEFINE:%=;%)%(&DEFINE_RELEASE:%=;%)</PreprocessorDefinitions>
-PRINTNL       <AdditionalIncludeDirectories>%(@&CONFIG_INCLUDE:%= ;%)%(@&INCLUDE:%= ;%)%(@&INCLUDE_RELEASE:%= ;%)%(@&SYSINCLUDE:%= ;%) ;%(&TARGINC)</AdditionalIncludeDirectories>
+PRINTNL       <AdditionalIncludeDirectories>%(@&CONFIG_INCLUDE:%=;%)%(@&INCLUDE:%=;%)%(@&INCLUDE_RELEASE:%=;%)%(@&SYSINCLUDE:%=;%);%(&TARGINC)</AdditionalIncludeDirectories>
 PRINTNL       <MkTypLibCompatible>false</MkTypLibCompatible>
 PRINTNL       <TypeLibraryName>$(TargetDir)$(ProjectName).tlb</TypeLibraryName>
 PRINTNL       <OutputDirectory>%(¯~!BUILDPATH)%(~§PATH)</OutputDirectory>
