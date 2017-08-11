@@ -202,7 +202,7 @@ IF "%(PRECOMPILED_HEADER)"
   ENDIF
 ENDIF
 IF "%(HEADER_FORCE)"
-  PRINTNL       <ForcedIncludeFiles>%(HEADER_FORCE:%=;%)</ForcedIncludeFiles>
+  PRINTNL       <ForcedIncludeFiles>%(~!HEADER_FORCE:%=;%)</ForcedIncludeFiles>
 ENDIF
 PRINTNL       <ProgramDataBaseFileName>$(OutDir)$(ProjectName).pdb</ProgramDataBaseFileName>
 IFDEF COMPILER_CLANG
@@ -348,7 +348,7 @@ IF "%(PRECOMPILED_HEADER)"
   PRINTNL       <PrecompiledHeaderThrough>%(PCH_FILE)</PrecompiledHeaderThrough>
 ENDIF
 IF "%(HEADER_FORCE)"
-  PRINTNL       <ForcedIncludeFiles>%(HEADER_FORCE:%=;%)</ForcedIncludeFiles>
+  PRINTNL       <ForcedIncludeFiles>%(~!&HEADER_FORCE:%=;%)</ForcedIncludeFiles>
 ENDIF
 IFDEF COMPILER_CLANG
   PRINTNL       <WarningLevel>EnableAllWarnings</WarningLevel>
