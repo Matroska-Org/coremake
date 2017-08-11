@@ -1237,59 +1237,66 @@ void getrelpath(char* path, int path_flags, const char* __curr, int curr_flags, 
 	if (path_flags & FLAG_PATH_SET_ABSOLUTE)
 	{
 		/* TODO handle this case */
-		assert(ispathabs(curr));
+        assert(ispathabs(curr));
+        size_t same = 0;
+        while (curr[same] == path[same])
+            same++;
+        while (same && path[same] != '/')
+            same--;
+        path += same;
+        curr += same;
 	}
-
+    else
     {
-		const char *abspath = NULL;
+        const char *abspath = NULL;
         // ensure that we deal with absolute pathes to compare
         assert(ispathabs(curr));
 
         switch (path_flags & FLAG_PATH_MASK)
         {
         case FLAG_PATH_SOURCE:
-			abspath = src_root;
+            abspath = src_root;
             break;
         case FLAG_PATH_GENERATED:
-			abspath = project_root;
-			break;
+            abspath = project_root;
+            break;
         case FLAG_PATH_COREMAKE:
-			abspath = coremake_root;
+            abspath = coremake_root;
         }
 
-		if (abspath)
-		{
-			size_t abspath_len = strlen(abspath);
-			if (strnicmp(path, abspath, abspath_len) != 0)
-				strins(path, abspath, NULL);
-		}
-
-        simplifypath(path,1);
-        simplifypath(curr,1);
-
-        for (;;)
-	    {
-		    char* i = nextlevel(path);
-		    char* j = nextlevel(curr);
-
-		    if (i && j && (i-path)==(j-curr) && strnicmp(path,curr,i-path)==0)
-		    {
-			    strdel(path,i);
-			    curr = j;
-		    }
-		    else
-			    break;
-	    }
-
-	    while ((curr = nextlevel(curr)) != NULL)
+        if (abspath)
         {
-            if (--levelup < 0)
-		        strins(path,"../",NULL);
+            size_t abspath_len = strlen(abspath);
+            if (strnicmp(path, abspath, abspath_len) != 0)
+                strins(path, abspath, NULL);
         }
 
-	    if (!path[0])
-		    strcpy(path,"./");
+        simplifypath(path, 1);
+        simplifypath(curr, 1);
     }
+
+    for (;;)
+	{
+		char* i = nextlevel(path);
+		char* j = nextlevel(curr);
+
+		if (i && j && (i-path)==(j-curr) && strnicmp(path,curr,i-path)==0)
+		{
+			strdel(path,i);
+			curr = j;
+		}
+		else
+			break;
+	}
+
+	while ((curr = nextlevel(curr)) != NULL)
+    {
+        if (--levelup < 0)
+		    strins(path,"../",NULL);
+    }
+
+	if (!path[0])
+		strcpy(path,"./");
 
 	if (delend)
 		delendpath(path);
@@ -1702,7 +1709,7 @@ int load_item(item* root,reader* file,int sub,itemcond* cond0)
 				{
 					if (has_statement)
 					{
-						printf("CONFIG_FILE needs to be find in the .proj file %s:%d\r\n", file->filename, file->r.no);
+						printf("CONFIG_FILE needs to be first in the .proj file %s:%d\r\n", file->filename, file->r.no);
 						exit(1);
 					}
 					root = item_find_add(root->parent, root_path, 0);
@@ -4060,7 +4067,8 @@ static int tokeneval(char* s,int skip,build_pos* pos,reader* error, int extra_cm
             count = *s=='=';
             if (count) ++s;
             dos = *s==(char)0x7E; // ~
-			if (dos) ++s;
+			if (dos)
+                ++s;
 			fourcc = *s=='\'';
 			if (fourcc) ++s;
 			fileupper = *s=='?';
@@ -4076,7 +4084,8 @@ static int tokeneval(char* s,int skip,build_pos* pos,reader* error, int extra_cm
             only_relpath = *s==(char)0xBA; // º
             if (only_relpath) { ++s; only_abspath=0; }
             relpath = *s=='!';
-			if (relpath) ++s;
+			if (relpath)
+                ++s;
             escape = *s==(char)0x60; // `
 			if (escape) ++s;
 			while (*s==(char)0x60 && ++escape) ++s;
@@ -4356,6 +4365,9 @@ static int tokeneval(char* s,int skip,build_pos* pos,reader* error, int extra_cm
 					if (usename)
                     {
 						strcpy(name,j->value);
+                        if (strncmp(name, "C:/Users/robUx4/Documents/Programs/Videolabs/work/compat/msvc/ms_fixup.h", 72)==0)
+                            name[0] = 'C';
+                        //if (relpath) printf("name: %s\r\n", name);
                         name_flags = j->flags;
                     }
 					else
@@ -4409,6 +4421,8 @@ static int tokeneval(char* s,int skip,build_pos* pos,reader* error, int extra_cm
 
                     if (is_relpath && relpath)
 						getrelpath(name,name_flags,buildpath[curr_build],buildflags[curr_build],delend,levelup, error->project_root, error->src_root, error->coremake_root);
+                    else if (!is_relpath && relpath)
+                        getrelpath(name, name_flags, buildpath[curr_build], buildflags[curr_build], delend, levelup, error->project_root, error->src_root, error->coremake_root);
                     if (!skip && abspath && is_relpath)
                         getabspath(name,name_flags,buildpath[curr_build],buildflags[curr_build], error->project_root, error->src_root, error->coremake_root);
 					if (filepath) truncfilepath(name,delend);
