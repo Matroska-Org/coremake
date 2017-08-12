@@ -1236,7 +1236,6 @@ void getrelpath(char* path, int path_flags, const char* __curr, int curr_flags, 
 
 	if (path_flags & FLAG_PATH_SET_ABSOLUTE)
 	{
-		/* TODO handle this case */
         assert(ispathabs(curr));
         size_t same = 0;
         while (curr[same] == path[same])
@@ -1466,14 +1465,20 @@ static void settle_root(item *root, const char *src_root, const char *proj_root,
 	i = item_find_add(root, "rootpath", 1);
 	i = item_find_add(i, src_root, 1);
 	set_path_type(i, FLAG_PATH_SOURCE);
+    if (ispathabs(src_root))
+        i->flags |= FLAG_PATH_SET_ABSOLUTE;
 
 	i = item_find_add(root, "builddir", 1);
 	i = item_find_add(i, proj_root, 1);
 	set_path_type(i, FLAG_PATH_GENERATED);
+    if (ispathabs(proj_root))
+        i->flags |= FLAG_PATH_SET_ABSOLUTE;
 
 	i = item_find_add(root, "platform_files", 1);
 	i = item_find_add(i, coremake_root, 1);
 	set_path_type(i, FLAG_PATH_COREMAKE);
+    if (ispathabs(coremake_root))
+        i->flags |= FLAG_PATH_SET_ABSOLUTE;
 }
 
 int load_file(item* root,const char* filename, itemcond* cond0, const char *root_path, const char *src_path, const char *coremake_path);
@@ -1777,7 +1782,6 @@ int load_item(item* root,reader* file,int sub,itemcond* cond0)
 				do
 				{
                     int exists;
-                    int is_abs=0;
 
 					reader_token(file);
                     if (filename)
@@ -1785,7 +1789,6 @@ int load_item(item* root,reader* file,int sub,itemcond* cond0)
                         int file_flags = generated_dir?FLAG_PATH_GENERATED:(coremake_dir?FLAG_PATH_COREMAKE:(system_dir?FLAG_PATH_SYSTEM:FLAG_PATH_SOURCE));
                         if (ispathabs(file->token))
                         {
-                            is_abs = 1;
                             file_flags |= FLAG_PATH_SET_ABSOLUTE;
                         }
                         reader_filename(file,file_flags);
@@ -1795,8 +1798,6 @@ int load_item(item* root,reader* file,int sub,itemcond* cond0)
 					i = item_find_add(j,file->token,0);
                     if (attrib)
                         i->flags |= FLAG_ATTRIB;
-                    if (is_abs)
-                        i->flags |= FLAG_PATH_SET_ABSOLUTE;
 
                     if (coremake_dir)
                         set_path_type(i,FLAG_PATH_COREMAKE);
@@ -4365,9 +4366,6 @@ static int tokeneval(char* s,int skip,build_pos* pos,reader* error, int extra_cm
 					if (usename)
                     {
 						strcpy(name,j->value);
-                        if (strncmp(name, "C:/Users/robUx4/Documents/Programs/Videolabs/work/compat/msvc/ms_fixup.h", 72)==0)
-                            name[0] = 'C';
-                        //if (relpath) printf("name: %s\r\n", name);
                         name_flags = j->flags;
                     }
 					else
@@ -5719,11 +5717,15 @@ int main(int argc, char** argv)
     i = item_find_add(universe,"outputpath",1);
 	i = item_find_add(i,path,1);
     set_path_type(i,FLAG_PATH_GENERATED);
+    if (ispathabs(path))
+        i->flags |= FLAG_PATH_SET_ABSOLUTE;
 
 	sprintf(path,"%sbuild/%s/",proj_root,platform);
     i = item_find_add(universe,"buildpath",1);
 	i = item_find_add(i,path,1);
     set_path_type(i,FLAG_PATH_GENERATED);
+    if (ispathabs(path))
+        i->flags |= FLAG_PATH_SET_ABSOLUTE;
 
 	i = getvalue(item_find_add(root,"platform_files",0));
 	if (i)
