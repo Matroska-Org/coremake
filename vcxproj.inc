@@ -128,14 +128,14 @@ PRINTNL   <PropertyGroup>
 PRINTNL     <_ProjectFileVersion>14.0.25431.1</_ProjectFileVersion>
 PRINTNL   </PropertyGroup>
 PRINTNL   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='%(TARG_DEBUG)|%(TARGNAME)'">
-PRINTNL     <OutDir>%(¯~!OUTPUTPATH)debug\%(~+OUTPUTDIR)</OutDir>
+PRINTNL     <OutDir>%(¯~!OUTPUTPATH)debug%(~+OUTPUTDIR)</OutDir>
 PRINTNL     <IntDir>%(¯~!BUILDPATH)debug\%(~§PATH)\%(NAME)\</IntDir>
 IFDEF COMPILER_CLANG
   PRINTNL     <UseMultiToolTask>true</UseMultiToolTask>
 ENDIF
 PRINTNL   </PropertyGroup>
 PRINTNL   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='%(TARG_RELEASE)|%(TARGNAME)'">
-PRINTNL     <OutDir>%(¯~!OUTPUTPATH)release\%(~+OUTPUTDIR)</OutDir>
+PRINTNL     <OutDir>%(¯~!OUTPUTPATH)release%(~+OUTPUTDIR)</OutDir>
 PRINTNL     <IntDir>%(¯~!BUILDPATH)release\%(~§PATH)\%(NAME)\</IntDir>
 IFDEF COMPILER_CLANG
   PRINTNL     <UseMultiToolTask>true</UseMultiToolTask>
