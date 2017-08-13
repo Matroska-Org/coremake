@@ -73,6 +73,13 @@ int curr_build = 0;
 #define ROOT_NAME      "ROOT"
 #define UNIVERSE_NAME  "UNIVERSE"
 
+enum build_step
+{
+    PREBUILD_PRE_CONFIG,    /* up to the CONFIG instruction */
+    PREBUILD_BEFORE_CONFIG, /* second parsing before the CONFIG instruction */
+    PREBUILD_AFTER_CONFIG,  /* second parsing after the CONFIG instruction */
+};
+
 typedef struct reader_static
 {
 	FILE* f;
@@ -438,7 +445,7 @@ void item_sort(item* p,int(*compare)(const item*, const item*))
 	}
 }
 
-static item* item_find_add(item* parent,const char* value,int defined)
+static item* item_find_add(item* parent,const char* value,int set_defined)
 {
 	item* p = item_find(parent,value);
 	if (!p)
@@ -449,7 +456,7 @@ static item* item_find_add(item* parent,const char* value,int defined)
 		if (parent)
 			item_add(parent,p);
 	}
-	if (defined)
+	if (set_defined)
 		p->flags |= FLAG_DEFINED;
 	return p;
 }
@@ -645,7 +652,7 @@ itemcond* itemcond_or(itemcond* p,itemcond* cond)
 static item* item_getmerge(item* into,const item* child,int removed,int *existed)
 {
     item* dup;
-	dup = item_find(into,child->value);
+    dup = item_find(into,child->value);
 	*existed = dup != NULL;
 	if (!dup)
 		dup = item_find_add(into,child->value,(child->flags & FLAG_DEFINED)==FLAG_DEFINED);
@@ -656,8 +663,8 @@ static item* item_getmerge(item* into,const item* child,int removed,int *existed
     dup->flags |= (child->flags & ~FLAG_REMOVED);
 	if (dup->flags & FLAG_PATH_SOURCE)
 	{
-		item *src_root = item_root(child, 0);
-		item *dst_root = item_root(into, 0);
+		const item *src_root = item_root(child, 0);
+		const item *dst_root = item_root(into, 0);
 		if (src_root != dst_root)
 		{
 			/* turn into an absolute path with the source root */
@@ -679,7 +686,6 @@ static void item_merge2(item* into,const item* group,itemcond* cond0,int removed
 {
 	item** child;
 	itemcond* cond = itemcond_and(itemcond_dup(group->cond),cond0);
-
 	for (child = group->child;child != group->childend;++child)
 	{
 		int child_exists;
@@ -2112,7 +2118,7 @@ void preprocess_dependency_project(item* p)
 
 		for (i=0;i<item_childcount(use);++i)
 		{
-			item* ref = findref(use->child[i]);
+            item* ref = findref(use->child[i]);
 			if (!ref || (ref->flags & FLAG_REMOVED) || ref==p)
 			{
 				preprocess_setremoved(use->child[i]);
@@ -2245,7 +2251,7 @@ static int tokeneval(char* s,int skip,build_pos* pos,reader* error, int extra_cm
 static void create_missing_dirs(const char *path);
 static void getabspath(char* path, int path_flags, const char *rel_path, int rel_flags, const char *prj_root, const char *src_root, const char *coremake_root);
 static void compile_file(item* p, const char *src, const char *dst, int flags, build_pos *pos, int automake, const char *pjr_root, const char *src_root, const char *coremake_root);
-static int build_parse(item* p, reader* file, int sub, int skip, build_pos* pos0);
+static int build_parse(item* p, reader* file, int sub, int skip, build_pos* pos0, enum build_step prebuild);
 
 void preprocess_stdafx_includes(item* p,int lib, const char *p_root, const char *src_root, const char *coremake_root)
 {
@@ -3255,7 +3261,7 @@ static void preprocess_use_group_root(item *root, item *targets, item *target)
 	for (i = 0; i<item_childcount(use); ++i)
 	{
 		item *child = use->child[i];
-		item* group = find_group_from_root(root, child->value);
+        item* group = find_group_from_root(root, child->value);
 		if (!group)
 		{
 			const item *all_roots = item_universe(root);
@@ -3704,103 +3710,109 @@ static void preprocess_sort(item* p)
     }
 }
 
-void preprocess(item* root, const char *pr_root, const char *src_root, const char *coremake_root)
+void preprocess_part1(item* root, const char *pr_root, const char *src_root, const char *coremake_root)
 {
-	item* i;
+    item* i;
     item* con_to_exe;
     char config_path[MAX_PATH];
     item *config_file;
     size_t target;
-	assert(item_is_root(root));
+    assert(item_is_root(root));
 
-	i = getvalue(item_find(root,"platformlib"));
-	if (i)
-	{
-		char path[MAX_PATH];
-		sprintf(path, "lib/%s/", i->value);
-		item_find_add(item_find_add(root, "libpath", 1), path, 1); /* TODO remove, it's never used */
-	}
-	else
-		printf("PLATFORMLIB not defined for this target, USELIB will not work\r\n");
+    i = getvalue(item_find(root, "platformlib"));
+    if (i)
+    {
+        char path[MAX_PATH];
+        sprintf(path, "lib/%s/", i->value);
+        item_find_add(item_find_add(root, "libpath", 1), path, 1); /* TODO remove, it's never used */
+    }
+    else
+        printf("PLATFORMLIB not defined for this target, USELIB will not work\r\n");
 
-	preprocess_condstart(root);
-	preprocess_config(getconfig(root));
-	preprocess_condeval(root);
+    preprocess_condstart(root);
+    preprocess_config(getconfig(root));
+    preprocess_condeval(root);
 
     // add the path with config.h to CONFIG_INCLUDE
-    i = item_find_add(root,"config_include",0);
-    config_file = getvalue(item_find(root,"config_file"));
+    i = item_find_add(root, "config_include", 0);
+    config_file = getvalue(item_find(root, "config_file"));
     if (config_file)
-        strcpy(config_path,config_file->value);
+        strcpy(config_path, config_file->value);
     else
-        config_path[0]=0;
-    truncfilepath(config_path,0);
-    i = item_find_add(i,config_path,0);
-    set_path_type(i,FLAG_PATH_GENERATED);
+        config_path[0] = 0;
+    truncfilepath(config_path, 0);
+    i = item_find_add(i, config_path, 0);
+    set_path_type(i, FLAG_PATH_GENERATED);
     i->flags |= FLAG_ATTRIB;
     i->flags |= FLAG_PATH_GENERATED;
 
-	// add the path of the CONFIG_CLEANER file to CONFIG_INCLUDE
-	i = item_find(root,"config_cleaner");
-	if (i && getvalue(i))
+    // add the path of the CONFIG_CLEANER file to CONFIG_INCLUDE
+    i = item_find(root, "config_cleaner");
+    if (i && getvalue(i))
     {
-		strcpy(config_path,getvalue(i)->value);
-		truncfilepath(config_path,0);
-        i = item_find_add(item_find_add(root,"config_include",0),config_path,1);
-        set_path_type(i,FLAG_PATH_SOURCE);
+        strcpy(config_path, getvalue(i)->value);
+        truncfilepath(config_path, 0);
+        i = item_find_add(item_find_add(root, "config_include", 0), config_path, 1);
+        set_path_type(i, FLAG_PATH_SOURCE);
     }
 
-	// add the path of PLATFORM_FILES to CONFIG_INCLUDE if COREMAKE_CONFIG_HELPER is set
-	if (item_find_add(getconfig(root),"COREMAKE_CONFIG_HELPER",0)->flags & FLAG_DEFINED)
-	{
-        i = item_find_add(item_find_add(root,"config_include",0),coremake_root,1);
-        set_path_type(i,FLAG_PATH_SOURCE);
-	}
+    // add the path of PLATFORM_FILES to CONFIG_INCLUDE if COREMAKE_CONFIG_HELPER is set
+    if (item_find_add(getconfig(root), "COREMAKE_CONFIG_HELPER", 0)->flags & FLAG_DEFINED)
+    {
+        i = item_find_add(item_find_add(root, "config_include", 0), coremake_root, 1);
+        set_path_type(i, FLAG_PATH_SOURCE);
+    }
 
     // "GROUP con_to_exe": replaces all "con" by "exe" and add "USE con_to_exe"
-    con_to_exe = getvalue(item_find(item_find(item_find(root,"group"),"con_to_exe"),"source"));
-	if (con_to_exe)
-	{
-		i = item_find(root,"con");
+    con_to_exe = getvalue(item_find(item_find(item_find(root, "group"), "con_to_exe"), "source"));
+    if (con_to_exe)
+    {
+        i = item_find(root, "con");
         if (i)
         {
-        	item** child;
-        	for (child=i->child;child!=i->childend;++child)
+            item** child;
+            for (child = i->child; child != i->childend; ++child)
                 if (!((*child)->flags & FLAG_REMOVED))
-	            {
-                    item* j = item_find_add(item_find_add(root,"exe",0),(*child)->value,1);
-		            item_merge(j,*child,NULL);
-                    item_find_add(item_find_add(j,"use",0),"con_to_exe",1);
-		            item_delete(*child);
+                {
+                    item* j = item_find_add(item_find_add(root, "exe", 0), (*child)->value, 1);
+                    item_merge(j, *child, NULL);
+                    item_find_add(item_find_add(j, "use", 0), "con_to_exe", 1);
+                    item_delete(*child);
                     --child;
-        	    }
+                }
         }
     }
-    else if (item_find_add(getconfig(root),"COREMAKE_CONSOLE",0)->flags & FLAG_DEFINED)
+    else if (item_find_add(getconfig(root), "COREMAKE_CONSOLE", 0)->flags & FLAG_DEFINED)
     {
         // repleace all "exe" by "con"
-		i = item_find(root,"exe");
+        i = item_find(root, "exe");
         if (i)
         {
-        	item** child;
-        	for (child=i->child;child!=i->childend;++child)
+            item** child;
+            for (child = i->child; child != i->childend; ++child)
                 if (!((*child)->flags & FLAG_REMOVED))
-	            {
-                    item* j = item_find_add(item_find_add(root,"con",0),(*child)->value,1);
-		            item_merge(j,*child,NULL);
-		            item_delete(*child);
+                {
+                    item* j = item_find_add(item_find_add(root, "con", 0), (*child)->value, 1);
+                    item_merge(j, *child, NULL);
+                    item_delete(*child);
                     --child;
-        	    }
+                }
         }
     }
 
-	/* copy all groups into the actual target */
+    /* copy all groups into the actual target */
     for (target = 0; all_targets[target].name; target++)
         if (all_targets[target].output_name)
-	        preprocess_use_group(root, all_targets[target].name);
-	preprocess_use_group(root,"workspace");
+            preprocess_use_group(root, all_targets[target].name);
+    preprocess_use_group(root, "workspace");
+}
 
-	// COREMAKE_STATIC and TARGET_ALWAYS_STATIC: replaces all "dll" by "lib"
+void preprocess_part2(item* root, const char *pr_root, const char *src_root, const char *coremake_root)
+{
+    item* i;
+    size_t target;
+
+    // COREMAKE_STATIC and TARGET_ALWAYS_STATIC: replaces all "dll" by "lib"
 	if ((item_find_add(getconfig(root),"COREMAKE_STATIC",0)->flags & FLAG_DEFINED) || (item_find_add(getconfig(root),"TARGET_ALWAYS_STATIC",0)->flags & FLAG_DEFINED))
 	{
 		i = item_find(root,"dll");
@@ -4927,7 +4939,7 @@ static void compile_file(item* p, const char *src, const char *dst, int flags, b
                 if (!automake && stricmp(eval, "%%BEGIN") == 0)
                 {
                     reader_line(&r);
-                    build_parse(p,&r,16,0,pos);
+                    build_parse(p,&r,16,0,pos, 0);
                 }
                 else
                 {
@@ -4955,8 +4967,8 @@ static void compile_file(item* p, const char *src, const char *dst, int flags, b
     reader_free(&r);
 }
 
-static void build_file(item* p,const char* filename, int filename_kind, const char *pjr_root, const char *src_root, const char *coremake_root);
-static int build_parse(item* p,reader* file,int sub,int skip,build_pos* pos0)
+static void build_file(item* p,const char* filename, int filename_kind, const char *pjr_root, const char *src_root, const char *coremake_root, enum build_step prebuild);
+static int build_parse(item* p,reader* file,int sub,int skip,build_pos* pos0, enum build_step prebuild)
 {
 	int bin;
 	int result=0;
@@ -4985,7 +4997,7 @@ static int build_parse(item* p,reader* file,int sub,int skip,build_pos* pos0)
             reader_token(file);
 			reader_filename(file,FLAG_PATH_COREMAKE);
             if (!skip && !(file->r.flags & FLAG_NO_INCLUDE))
-                build_file(p, file->token, FLAG_PATH_COREMAKE, file->project_root, file->src_root, file->coremake_root);
+                build_file(p, file->token, FLAG_PATH_COREMAKE, file->project_root, file->src_root, file->coremake_root, prebuild);
 		}
 		else
 		if (is_sharped && reader_istoken(file,"undef"))
@@ -5037,31 +5049,38 @@ static int build_parse(item* p,reader* file,int sub,int skip,build_pos* pos0)
 		else
 		if (!is_sharped && reader_istoken(file,"config"))
 		{
-			if (!skip)
-			{
-				const item* root = item_root(p, 0);
-				item* config = item_find(root,"config_file");
-				if (config && getvalue(config))
+            if (prebuild == PREBUILD_PRE_CONFIG)
+            {
+                if (!skip)
                 {
-                    item* no_include = item_find(*config->child, "no_include");
-                    set_path_type(config,FLAG_PATH_GENERATED);
-					build_file(p,getvalue(config)->value, FLAG_PATH_GENERATED | (no_include?FLAG_NO_INCLUDE:0), file->project_root, file->src_root, file->coremake_root);
+                    const item* root = item_root(p, 0);
+                    item* config = item_find(root, "config_file");
+                    if (config && getvalue(config))
+                    {
+                        item* no_include = item_find(*config->child, "no_include");
+                        set_path_type(config, FLAG_PATH_GENERATED);
+                        build_file(p, getvalue(config)->value, FLAG_PATH_GENERATED | (no_include ? FLAG_NO_INCLUDE : 0), file->project_root, file->src_root, file->coremake_root, prebuild);
+                    }
+                    config = item_find(getconfig(p), "COREMAKE_CONFIG_HELPER");
+                    if (config && config->flags & FLAG_DEFINED)
+                    {
+                        strcpy(tmpstr, file->coremake_root);
+                        strcat(tmpstr, "/config_helper.h");
+                        build_file(p, tmpstr, FLAG_PATH_COREMAKE, file->project_root, file->src_root, file->coremake_root, prebuild);
+                    }
+                    config = item_find(root, "config_cleaner");
+                    if (config && getvalue(config))
+                    {
+                        set_path_type(config, FLAG_PATH_SOURCE);
+                        build_file(p, getvalue(config)->value, FLAG_PATH_SOURCE, file->project_root, file->src_root, file->coremake_root, prebuild);
+                    }
+                    //preprocess(p, file->project_root, file->src_root, file->coremake_root);
                 }
-				config = item_find(getconfig(p),"COREMAKE_CONFIG_HELPER");
-				if (config && config->flags & FLAG_DEFINED)
-				{
-					strcpy(tmpstr,file->coremake_root);
-					strcat(tmpstr,"/config_helper.h");
-					build_file(p,tmpstr, FLAG_PATH_COREMAKE, file->project_root, file->src_root, file->coremake_root);
-				}
-				config = item_find(root,"config_cleaner");
-				if (config && getvalue(config))
-                {
-                    set_path_type(config,FLAG_PATH_SOURCE);
-					build_file(p,getvalue(config)->value, FLAG_PATH_SOURCE, file->project_root, file->src_root, file->coremake_root);
-                }
-				preprocess(p, file->project_root, file->src_root, file->coremake_root);
-			}
+                return result;
+            }
+            if (prebuild != PREBUILD_BEFORE_CONFIG)
+                printf("More than one CONFIG line\r\n");
+            prebuild = PREBUILD_AFTER_CONFIG; /* allow all prebuild stuff */
 		}
 		else
 		if (!is_sharped && reader_istoken(file,"while"))
@@ -5074,7 +5093,7 @@ static int build_parse(item* p,reader* file,int sub,int skip,build_pos* pos0)
 				reader_restore(file,&whilepos);
 				reader_tokeneval(file,skip,0,&pos,0);
 				v = eval(file->token,getconfig(p),file);
-				build_parse(p,file,21,!v || skip,&pos);
+				build_parse(p,file,21,!v || skip,&pos, prebuild);
                 if (p->flags & FLAG_REMOVED) skip = 1;
 			}
 			while (v && !skip);
@@ -5090,11 +5109,11 @@ static int build_parse(item* p,reader* file,int sub,int skip,build_pos* pos0)
 				int v;
 				reader_tokeneval(file,skip,0,&pos,0);
 				v = eval(file->token,getconfig(p),file);
-				m = build_parse(p,file,2,!v || skip || done,&pos);
+				m = build_parse(p,file,2,!v || skip || done,&pos, prebuild);
                 if (p->flags & FLAG_REMOVED) skip = 1;
 				if (m==1)
                 {
-					build_parse(p,file,3,v || skip || done,&pos);
+					build_parse(p,file,3,v || skip || done,&pos, prebuild);
                     if (p->flags & FLAG_REMOVED) skip = 1;
                 }
                 else if (v)
@@ -5113,11 +5132,11 @@ static int build_parse(item* p,reader* file,int sub,int skip,build_pos* pos0)
 				reader_tokeneval(file,skip,0,&pos,0);
 				i = item_find(getconfig(p),file->token);
 				v = i && (i->flags & FLAG_DEFINED);
-				m = build_parse(p,file,2,!v || skip || done,&pos);
+				m = build_parse(p,file,2,!v || skip || done,&pos, prebuild);
                 if (p->flags & FLAG_REMOVED) skip = 1;
 				if (m==1)
                 {
-					build_parse(p,file,3,v || skip || done,&pos);
+					build_parse(p,file,3,v || skip || done,&pos, prebuild);
                     if (p->flags & FLAG_REMOVED) skip = 1;
                 }
                 else if (v)
@@ -5136,11 +5155,11 @@ static int build_parse(item* p,reader* file,int sub,int skip,build_pos* pos0)
 				reader_tokeneval(file,skip,0,&pos,0);
 				i = item_find(getconfig(p),file->token);
 				v = !i || !(i->flags & FLAG_DEFINED);
-				m = build_parse(p,file,2,!v || skip || done,&pos);
+				m = build_parse(p,file,2,!v || skip || done,&pos, prebuild);
                 if (p->flags & FLAG_REMOVED) skip = 1;
 				if (m==1)
                 {
-					build_parse(p,file,3,v || skip || done,&pos);
+					build_parse(p,file,3,v || skip || done,&pos, prebuild);
                     if (p->flags & FLAG_REMOVED) skip = 1;
                 }
                 else if (v)
@@ -5325,7 +5344,7 @@ static int build_parse(item* p,reader* file,int sub,int skip,build_pos* pos0)
 								reader_restore(file,&forpos);
                             setvalue(item_find_add(w,"for_last",0),(child+(reverse?-1:1)==childend)?"1":"0");
 
-							build_parse(w,file,1,0,&pos);
+							build_parse(w,file,1,0,&pos, prebuild);
                             if (w->flags & FLAG_REMOVED)
                             {
                                 item_delete(w);
@@ -5355,7 +5374,7 @@ static int build_parse(item* p,reader* file,int sub,int skip,build_pos* pos0)
                 reader_free(&forpos);
 
 				if (first)
-					build_parse(p,file,1,1,&pos);
+					build_parse(p,file,1,1,&pos, prebuild);
 			}
 			else
 				syntax(file);
@@ -5441,10 +5460,10 @@ static int build_parse(item* p,reader* file,int sub,int skip,build_pos* pos0)
             {
                 item *j = item_find_add(i,file->token,1);
                 set_path_type(j,flags & FLAG_PATH_MASK);
-                build_parse(j,file,9,skip,&pos);
+                build_parse(j,file,9,skip,&pos, prebuild);
             }
             else
-                build_parse(p,file,9,1,&pos);
+                build_parse(p,file,9,1,&pos, prebuild);
 		}
 		else
 		if (!is_sharped && reader_istoken(file,"dirpush"))
@@ -5564,7 +5583,7 @@ static int build_parse(item* p,reader* file,int sub,int skip,build_pos* pos0)
 	return result;
 }
 
-static void build_file(item* p,const char* filename, int filename_kind, const char *pjr_root, const char *src_root, const char *coremake_root)
+static void build_file(item* p,const char* filename, int filename_kind, const char *pjr_root, const char *src_root, const char *coremake_root, enum build_step prebuild)
 {
 	reader r;
     reader_init(&r);
@@ -5582,7 +5601,7 @@ static void build_file(item* p,const char* filename, int filename_kind, const ch
 	}
     r.r.flags = filename_kind;
     r.r.filename_kind = filename_kind;
-	build_parse(p,&r,0,0,NULL);
+	build_parse(p,&r,0,0,NULL, prebuild);
 	fclose(r.r.f);
     reader_free(&r);
 }
@@ -5796,6 +5815,7 @@ int main(int argc, char** argv)
     buildflags[0] = FLAG_PATH_GENERATED;
 	file_built = NULL;
 
+    /* pre-build files up to the CONFIG instruction */
 	item** child_root;
 	for (child_root = all_roots->child; child_root != all_roots->childend; ++child_root)
 	{
@@ -5805,13 +5825,52 @@ int main(int argc, char** argv)
 		item *proj_path     = item_find(*child_root, "builddir");
 		item *src_path      = item_find(*child_root, "rootpath");
 		item *coremake_path = item_find(*child_root, "platform_files");
-		build_file(*child_root, path, FLAG_PATH_COREMAKE, getvalue(proj_path)->value, getvalue(src_path)->value, getvalue(coremake_path)->value);
+		build_file(*child_root, path, FLAG_PATH_COREMAKE, getvalue(proj_path)->value, getvalue(src_path)->value, getvalue(coremake_path)->value, PREBUILD_PRE_CONFIG);
 		if (file_built)
 		{
 			fclose(file_built);
 			file_finalize(buildpath[curr_build]);
 		}
 	}
+
+    for (child_root = all_roots->child; child_root != all_roots->childend; ++child_root)
+    {
+        /* call this for each root in the universe */
+        if (!item_is_root(*child_root))
+            continue;
+        item *proj_path = item_find(*child_root, "builddir");
+        item *src_path = item_find(*child_root, "rootpath");
+        item *coremake_path = item_find(*child_root, "platform_files");
+        preprocess_part1(*child_root, getvalue(proj_path)->value, getvalue(src_path)->value, getvalue(coremake_path)->value);
+    }
+
+    for (child_root = all_roots->child; child_root != all_roots->childend; ++child_root)
+    {
+        /* call this for each root in the universe */
+        if (!item_is_root(*child_root))
+            continue;
+        item *proj_path = item_find(*child_root, "builddir");
+        item *src_path = item_find(*child_root, "rootpath");
+        item *coremake_path = item_find(*child_root, "platform_files");
+        preprocess_part2(*child_root, getvalue(proj_path)->value, getvalue(src_path)->value, getvalue(coremake_path)->value);
+    }
+
+    /* build output files from the CONFIG instruction */
+    for (child_root = all_roots->child; child_root != all_roots->childend; ++child_root)
+    {
+        /* call this for each root in the universe */
+        if (!item_is_root(*child_root))
+            continue;
+        item *proj_path = item_find(*child_root, "builddir");
+        item *src_path = item_find(*child_root, "rootpath");
+        item *coremake_path = item_find(*child_root, "platform_files");
+        build_file(*child_root, path, FLAG_PATH_COREMAKE, getvalue(proj_path)->value, getvalue(src_path)->value, getvalue(coremake_path)->value, PREBUILD_BEFORE_CONFIG);
+        if (file_built)
+        {
+            fclose(file_built);
+            file_finalize(buildpath[curr_build]);
+        }
+    }
 
 	if (dumppost)
 		dumpitem(universe,1);
