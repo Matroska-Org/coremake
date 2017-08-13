@@ -361,6 +361,22 @@ static item* findref(const item* p)
 		const item* root = item_root(p, 0);
         for (target = 0; !v && all_targets[target].name; target++)
             v = item_find(item_find(root, all_targets[target].name), p->value);
+        if (!v)
+        {
+            /* try other roots */
+            const item *all_roots = item_universe(root);
+            if (all_roots)
+            {
+                item** child_root;
+                for (child_root = all_roots->child; !v && child_root != all_roots->childend; ++child_root)
+                {
+                    if (*child_root == root)
+                        continue;
+                    for (target = 0; !v && all_targets[target].name; target++)
+                        v = item_find(item_find(*child_root, all_targets[target].name), p->value);
+                }
+            }
+        }
 		return v;
 	}
 	return NULL;
@@ -3031,12 +3047,11 @@ void preprocess_workspace(item* p)
 	{
 		item* use = item_find(*child,"use");
 		size_t i;
-		for (i=0;i<item_childcount(use);++i)
-			use->child[i]->flags &= ~FLAG_PROCESSED;
-
-		for (i=0;i<item_childcount(use);++i)
-			if (!(use->child[i]->flags & FLAG_PROCESSED))
-				preprocess_workspace_adddep(use,use->child[i]);
+        for (i = 0; i < item_childcount(use); ++i)
+        {
+            use->child[i]->flags &= ~FLAG_PROCESSED;
+            preprocess_workspace_adddep(use, use->child[i]);
+        }
 
 		for (i=0;i<item_childcount(use);++i)
 		{
