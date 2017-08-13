@@ -1297,7 +1297,7 @@ void getrelpath(char* path, int path_flags, const char* __curr, int curr_flags, 
 	if (!path[0])
 		strcpy(path,"./");
 
-	if (delend)
+    if (delend)
 		delendpath(path);
     strcpy(__path,path);
 }
@@ -1335,7 +1335,9 @@ int strip_path_abs(char *path, int flags, const char *projc_root, const char *sr
 
 static void reader_strip_abs(reader* p)
 {
-    strip_path_abs(p->token,p->r.flags,p->project_root, p->src_root, p->coremake_root);
+    int relpath = strip_path_abs(p->token,p->r.flags,p->project_root, p->src_root, p->coremake_root);
+    if (relpath)
+        p->r.flags &= ~FLAG_PATH_SET_ABSOLUTE;
 }
 
 void reader_filename(reader* p, int dst_flags)
@@ -4185,7 +4187,7 @@ static int tokeneval(char* s,int skip,build_pos* pos,reader* error, int extra_cm
 						}
 					}
 
-					j = item_find(ii,iname);
+                    j = item_find(ii,iname);
 					for (i2=ii;!skip && !j && i2->parent;)
 					{
 						// search in parents
@@ -4274,7 +4276,11 @@ static int tokeneval(char* s,int skip,build_pos* pos,reader* error, int extra_cm
 
                             // force a relative path by default
                             if ((value_flags & FLAG_PATH_MASK) != FLAG_PATH_NOT_PATH)
-                                strip_path_abs(value, value_flags, error->project_root, error->src_root, error->coremake_root);
+                            {
+                                relpath = strip_path_abs(value, value_flags, error->project_root, error->src_root, error->coremake_root);
+                                if (relpath)
+                                    value_flags &= ~FLAG_PATH_SET_ABSOLUTE;
+                            }
 
                             if (in_generated==1)
                             {
@@ -4401,7 +4407,11 @@ static int tokeneval(char* s,int skip,build_pos* pos,reader* error, int extra_cm
                             result |= name_flags & FLAG_PATH_MASK;
                         }
                         if (skip || !abspath)
+                        {
                             is_relpath = strip_path_abs(name, name_flags, error->project_root, error->src_root, error->coremake_root);
+                            if (is_relpath)
+                                name_flags &= ~FLAG_PATH_SET_ABSOLUTE;
+                        }
                         else
                             is_relpath = 0;
                     }
