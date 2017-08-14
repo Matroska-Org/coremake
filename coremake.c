@@ -895,7 +895,6 @@ static int reader_read(reader* p)
 		}
         else if (p->r.ext_variable)
         {
-            char* s0 = s;
             for (; *s; ++s)
             {
                 p->token[p->r.ext_variable++] = *s;
@@ -5079,7 +5078,7 @@ static int build_parse(item* p,reader* file,int sub,int skip,build_pos* pos0, en
                 return result;
             }
             if (prebuild != PREBUILD_BEFORE_CONFIG)
-                printf("More than one CONFIG line\r\n");
+                printf("More than one CONFIG %s:%d\r\n", file->line, file->r.no);
             prebuild = PREBUILD_AFTER_CONFIG; /* allow all prebuild stuff */
 		}
 		else
